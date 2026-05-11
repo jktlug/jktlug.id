@@ -1,0 +1,41 @@
+cabal-version:          2.2
+name:                   jktlug-website
+version:                0.0.0.0
+synopsis:               The Jakarta Linux Users' Group Website
+homepage:               https://github.com/jktlug/jktlug.id#readme
+license:                CC-BY-4.0
+license-file:           LICENSE.md
+author:                 JKTLUG
+maintainer:             https://github.com/jktlug/jktlug.id/issues
+copyright:              2025 Jakarta Linux Users Group
+category:               website
+build-type:             Simple
+extra-source-files:     README.md
+
+common deps
+    default-language:   Haskell2010
+    ghc-options:        -threaded -Werror -fwarn-incomplete-patterns
+    build-depends:      base >= 4.7 && < 5,
+                        hakyll,
+                        filepath, directory, text, pandoc, mtl
+
+executable site-compiler
+    import:             deps
+    main-is:            SiteCompiler.hs
+    hs-source-dirs:     src/, app/
+    other-modules:      JKTLUG.Parser
+                      , JKTLUG.MediaWiki
+                      , JKTLUG.WikiLink
+                      , JKTLUG.WikiParam
+
+test-suite test
+    import:             deps
+    type:               exitcode-stdio-1.0
+    main-is:            ../app/Test.hs
+    build-depends:      HTF
+    hs-source-dirs:     src/
+    other-modules:      JKTLUG.Hello, JKTLUG.HelloTest
+                      , JKTLUG.Parser
+                      , JKTLUG.WikiLink
+                      , JKTLUG.WikiParam
+                      , JKTLUG.MediaWiki, JKTLUG.MediaWikiTest
