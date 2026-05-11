@@ -1,0 +1,21 @@
+# Build artifacts
+.stack-work/
+_site/
+dist/
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed for build)
+doc/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

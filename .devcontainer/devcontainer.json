@@ -1,0 +1,53 @@
+{
+  "name": "TLUG Website Dev Container (with Pi Coding Agent)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "USERNAME": "dev",
+      "USER_UID": "1000",
+      "USER_GID": "1000"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "haskell.haskell",
+        "justusadam.language-haskell",
+        "ms-vscode.makefile-tools"
+      ],
+      "settings": {
+        "haskell.manageHLS": "PATH",
+        "haskell.serverEnvironment": {
+          "PATH": "/home/dev/.local/bin:/usr/local/bin:${env:PATH}"
+        },
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.profiles.linux": {
+          "bash": {
+            "path": "/bin/bash",
+            "args": ["-l"]
+          }
+        }
+      }
+    }
+  },
+  "remoteEnv": {
+    "STACK_ROOT": "/home/dev/.stack"
+  },
+  "postCreateCommand": "stack setup && stack build --dependencies-only",
+  "postStartCommand": "git config --global --add safe.directory /workspace",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": {
+      "label": "Hakyll Preview Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "mounts": [
+    "source=${localEnv:HOME}/.ssh,target=/home/dev/.ssh,type=bind,consistency=cached,readonly",
+    "source=${localEnv:HOME}/.pi,target=/home/dev/.pi,type=bind,consistency=cached,readonly",
+    "source=${localEnv:HOME}/.stack,target=/home/dev/.stack,type=bind,consistency=cached"
+  ],
+  "remoteUser": "dev",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+}
