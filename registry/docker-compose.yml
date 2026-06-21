@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  registry:
+    image: registry:2
+    restart: unless-stopped
+    volumes:
+      - ./data:/var/lib/registry
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy-data:/data
+      - ./caddy-config:/config

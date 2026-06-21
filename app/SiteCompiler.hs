@@ -11,8 +11,8 @@ import           Data.List (isPrefixOf)
 import           Data.Text as DT (pack)
 import           Data.Maybe;
 import           Debug.Trace;
-import           TLUG.MediaWiki
-import           TLUG.WikiLink
+import           JKTLUG.MediaWiki
+import           JKTLUG.WikiLink
 
 --------------------------------------------------------------------------------
 
@@ -33,69 +33,11 @@ main = hakyll $ do
         compile copyFileCompiler
 
     match "wiki/*" $ do
-        route   idRoute     -- No extension; netlify config serves as text/html
+        route   $ setExtension "html"
         compile mediawikiCompiler
 
     tags <- buildTagsWith wikiCategoryRules "wiki/*" (fromCapture "wiki/*")
     createCategoryPages tags
-
-    -- The rest of this is the sample code for a blog site from the
-    -- initial project template. We're keeping this here as an example
-    -- until we've extracted everything we need from it.
-
-    match "example/images/*" $ do
-        route   idRoute
-        compile copyFileCompiler
-
-    match "example/css/*" $ do
-        route   idRoute
-        compile compressCssCompiler
-
-    match (fromList ["example/about.rst", "example/contact.markdown"]) $ do
-        route   $ setExtension "html"
-        compile $ pandocCompiler
-            >>= loadAndApplyTemplate
-                "example/templates/default.html" defaultContext
-            >>= relativizeUrls
-
-    match "example/posts/*" $ do
-        route $ setExtension "html"
-        compile $ pandocCompiler
-            >>= loadAndApplyTemplate "example/templates/post.html"    postCtx
-            >>= loadAndApplyTemplate "example/templates/default.html" postCtx
-            >>= relativizeUrls
-
-    create ["example/archive.html"] $ do
-        route idRoute
-        compile $ do
-            posts <- recentFirst =<< loadAll "example/posts/*"
-            let archiveCtx =
-                    listField "posts" postCtx (return posts) `mappend`
-                    constField "title" "Archives"            `mappend`
-                    defaultContext
-            makeItem ""
-                >>= loadAndApplyTemplate
-                    "example/templates/archive.html" archiveCtx
-                >>= loadAndApplyTemplate
-                    "example/templates/default.html" archiveCtx
-                >>= relativizeUrls
-
-    match "example/index.html" $ do
-        route idRoute
-        compile $ do
-            posts <- recentFirst =<< loadAll "example/posts/*"
-            let indexCtx =
-                    listField "posts" postCtx (return posts) `mappend`
-                    constField "title" "Home"                `mappend`
-                    defaultContext
-            getResourceBody
-                >>= applyAsTemplate indexCtx
-                >>= loadAndApplyTemplate
-                    "example/templates/default.html" indexCtx
-                >>= relativizeUrls
-
-    match "example/templates/*" $ compile templateCompiler
-
 
 --------------------------------------------------------------------------------
 -- Custom code for our site
@@ -144,7 +86,7 @@ wikiCategoryRules = Rules . liftIO . (categories <$>) . (parseFile =<<) . readFi
 createCategoryPages :: Tags -> Rules ()
 createCategoryPages tags = do
   tagsRules tags $ \tag pattern -> do
-    route $ idRoute -- setExtension "html"
+    route $ setExtension "html"
     compile $ do
       posts <- {-recentFirst =<<-} loadAll pattern
       let context = constField "tag" tag `mappend`
@@ -159,7 +101,7 @@ makeRedir :: String -> String -> String
 makeRedir redir body =
     "<html><head><meta http-equiv=\"refresh\" content=\"0;URL='/wiki/" ++
     fixchars redir ++
-    "'\" /></head><body><p>\n" ++
+    ".html'\" /></head><body><p>\n" ++
     body ++
     "</p></body></html>\n"
     where fixchars = map (\a -> if a == ' ' then '_' else a)
@@ -168,10 +110,10 @@ makeRedir redir body =
 --
 -- The mediawikiCompiler/pandoc produces links to other pages within the
 -- site using relative URLs containing just the page name. This works fine
--- when the page has no namespace (@href="TLUG_Timeline"@) but breaks in
--- browsers when a namespace is present, as in @href="TLUG:Organization"@,
--- because that's interpreted as @tlug://Organization@ rather than
--- @http://www.tlug.jp/wiki/TLUG:Organization@.
+-- when the page has no namespace (@href="JKTLUG_Timeline"@) but breaks in
+-- browsers when a namespace is present, as in @href="JKTLUG:Organization"@,
+-- because that's interpreted as @jktlug://Organization@ rather than
+-- @http://www.jktlug.id/wiki/JKTLUG:Organization@.
 --
 -- MediaWiki deals with these by generating @/wiki/...@ URLs for all pages
 -- within the wiki. Unfortunately, we can't tell at this stage whether
@@ -189,10 +131,4 @@ fixMediawikiUrls item = do
                 drop (length urlSchemeHack) url
             else url
 
---------------------------------------------------------------------------------
--- Also sample blog site code
 
-postCtx :: Context String
-postCtx =
-    dateField "date" "%B %e, %Y" `mappend`
-    defaultContext

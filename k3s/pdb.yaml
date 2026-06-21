@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: jktlug-website
+  namespace: jktlug
+  labels:
+    app.kubernetes.io/name: jktlug-website
+    app.kubernetes.io/instance: production
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jktlug-website
+      app.kubernetes.io/instance: production

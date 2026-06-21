@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jktlug-website
+  namespace: jktlug
+  labels:
+    app.kubernetes.io/name: jktlug-website
+    app.kubernetes.io/instance: production
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: jktlug-website
+    app.kubernetes.io/instance: production
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

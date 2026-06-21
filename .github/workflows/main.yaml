@@ -1,35 +1,156 @@
-name: Deploy Hakyll Site
+name: CI / CD
 
 on:
   push:
-    branches:
-      - master
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Your private registry domain
+  REGISTRY: registry.jktlug.id
+  IMAGE_NAME: jktlug/jktlug.id
 
 jobs:
-  deploy:
+  # --------------------------------------------------------------------------
+  # Build the static site using the Dockerfile builder stage
+  # --------------------------------------------------------------------------
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Stack dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.stack
-            ~/.local/bin
-          key: ${{ runner.os }}-stack-${{ hashFiles('**/stack.yaml.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-stack-
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Run the build script
+      # Build only the "builder" stage so we can extract _site later.
+      # BuildKit layer caching (type=gha) speeds up Stack/GHC rebuilds.
+      - name: Build site (Docker builder stage)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: builder
+          load: true
+          tags: site-builder:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Extract the compiled static site from the builder image
+      - name: Extract _site from builder image
         run: |
-          chmod +x Test
-          ./Test
+          docker create --name extract site-builder:latest
+          docker cp extract:/build/_site ./_site
+          docker rm extract
 
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Verify site output
+        run: |
+          echo "Generated files:"
+          ls -la _site/
+
+      - name: Upload site artifact
+        uses: actions/upload-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_site
+          name: static-site
+          path: _site/
+          retention-days: 1
+
+  # --------------------------------------------------------------------------
+  # Deploy static site to GitHub Pages (modern artifact-based deployment)
+  # --------------------------------------------------------------------------
+  # NOTE: For this job to work, go to Settings > Pages and set
+  #       "Build and deployment" source to "GitHub Actions".
+  deploy-pages:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download site artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: static-site
+          path: _site
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  # --------------------------------------------------------------------------
+  # Build and push the production image to your private registry
+  # --------------------------------------------------------------------------
+  push-image:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download site artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: static-site
+          path: _site
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to private registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.runtime
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # --------------------------------------------------------------------------
+  # Deploy to k3s by updating the Deployment image
+  # --------------------------------------------------------------------------
+  deploy-k3s:
+    needs: push-image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: v1.30.0
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Update deployment image
+        run: |
+          kubectl set image deployment/jktlug-website \
+            nginx=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            --namespace jktlug
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/jktlug-website \
+            --namespace jktlug \
+            --timeout=120s

@@ -90,6 +90,7 @@ Options:
   -C              clean build (this project only, not Stack dependencies)
   -h, --help      print this help message
   -t, --test-only compile code and run its unit tests only; don't compile site
+  -e, --e2e       run Python Playwright end-to-end tests after building site
   --prod-release  commit compiled site to gh-pages branch
   --dev-release   commit compiled site to dev release branch
 _____
@@ -98,12 +99,14 @@ _____
 }
 
 test_only=false
+run_e2e=false
 while [[ $# -gt 0 ]]; do case "$1" in
     -C)                 shift; git clean -fdX;;
     --prod-release)     shift; set_prod_release_branch;;
     --dev-release)      shift; set_dev_release_branch;;
     -h|--help)          shift; usage;;
     -t|--test-only)     shift; test_only=true;;
+    -e|--e2e)           shift; run_e2e=true;;
     -*)                 usage "unknown option: '$1'";;
     *)                  break;;
 esac; done
@@ -131,6 +134,11 @@ if ! $test_only; then
         echo 'Release with:'
         echo "    git push origin $relbranch"
     }
+fi
+
+if $run_e2e; then
+    echo "Running e2e tests..."
+    tests/e2e/run.sh
 fi
 
 trap '' 0

@@ -1,0 +1,38 @@
+# Dockerfile.runtime
+# Lightweight production image for jktlug.id
+#
+# Use this in CI/CD after the site has been built natively with Stack.
+# It skips the entire Haskell/Stack builder stage and simply serves the
+# pre-built static site with Nginx.
+#
+# Build context must contain:
+#   - _site/          (compiled static site)
+#   - nginx.conf      (Nginx vhost configuration)
+
+FROM debian:trixie
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    nginx \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/www/html/*
+
+COPY nginx.conf /etc/nginx/sites-available/default
+RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+# Pre-create directories nginx needs to write to, and ensure ownership
+RUN mkdir -p /var/cache/nginx /var/log/nginx /run /var/lib/nginx \
+    && chown -R www-data:www-data /var/cache/nginx /var/log/nginx /run /var/lib/nginx /var/www/html
+
+# Copy the pre-built static site from the CI artifact
+COPY _site /var/www/html
+
+RUN chown -R www-data:www-data /var/www/html
+
+# Run as non-root (www-data is UID 33)
+USER 33:33
+
+EXPOSE 8080
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jktlug
+  labels:
+    app.kubernetes.io/name: jktlug-website
+    app.kubernetes.io/instance: production
