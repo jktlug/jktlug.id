@@ -31,7 +31,7 @@ variables:
 # Cache template for Stack dependencies
 # ============================================================================
 # Keyed by lockfile + cabal file so the cache invalidates when deps change.
-.stack-cache:
+.stack-cache: &stack-cache
   key:
     files:
       - stack.yaml.lock
