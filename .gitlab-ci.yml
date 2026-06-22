@@ -79,6 +79,7 @@ variables:
 build-site:
   extends: .stack-build
   stage: build
+  tags: [docker]
   cache:
     <<: *stack-cache
   script:
@@ -97,6 +98,7 @@ build-site:
 run-tests:
   extends: .stack-build
   stage: test
+  tags: [docker]
   cache:
     <<: *stack-cache
     policy: pull  # read-only: avoid cache churn from test jobs
@@ -113,6 +115,7 @@ run-tests:
 pages:
   stage: deploy
   image: busybox
+  tags: [docker]
   dependencies:
     - build-site
   script:
@@ -133,6 +136,7 @@ pages:
 docker-build:
   stage: containerize
   image: docker:24
+  tags: [docker]
   services:
     - docker:24-dind
   dependencies:
@@ -194,6 +198,7 @@ docker-build:
 deploy-k3s:
   stage: k3s-deploy
   image: bitnami/kubectl:latest
+  tags: [docker]
   dependencies: []
   variables:
     DEPLOYMENT_NAMESPACE: jktlug
