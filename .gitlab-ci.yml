@@ -105,7 +105,6 @@ run-tests:
   script:
     - stack build --test --no-terminal
   dependencies: []  # tests don't need the compiled site artifact
-
 # ============================================================================
 # Stage: deploy  (GitLab Pages)
 # ============================================================================
