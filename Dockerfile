@@ -5,7 +5,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Build
 # ---------------------------------------------------------------------------
-FROM debian:trixie AS builder
+FROM debian:13 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -61,7 +61,7 @@ RUN --mount=type=cache,target=/root/.stack \
 # ---------------------------------------------------------------------------
 # Stage 2: Serve
 # ---------------------------------------------------------------------------
-FROM debian:trixie
+FROM debian:13
 
 ENV DEBIAN_FRONTEND=noninteractive
 
