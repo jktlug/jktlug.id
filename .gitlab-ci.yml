@@ -1,16 +1,18 @@
 # GitLab CI/CD for JKTLUG.id
 #
-# Strategy: Native Stack build (cached) + lightweight runtime Docker image
+# Strategy: Native Stack build (persistent ~/.stack on the shell runner) +
+# lightweight runtime Docker image
 #
 # Why native Stack instead of pure Docker build?
 #   The Dockerfile uses BuildKit cache mounts (--mount=type=cache) which are
-#   lost on every GitLab shared runner job because each job gets a fresh
-#   Docker-in-Docker daemon. Native Stack caching via GitLab's cache mechanism
-#   is much faster and more reliable.
+#   lost on every Docker-in-Docker job because each job gets a fresh daemon.
+#   Native Stack builds on the shell runner keep ~/.stack on the host disk,
+#   so dependency compilation persists between pipelines for free.
 #
-# Pipeline overview:
-#   build-site  →  test  →  pages (GitLab Pages)  →  docker-build (Registry)
-#                                                    →  deploy-k3s (optional)
+# Pipeline overview (branch-based):
+#   push to dev  → build-site → test → docker-build-dev → deploy-k3s-dev (local k3s)
+#   push to main → build-site → test → pages (GitLab Pages)
+#                                  → docker-build → deploy-k3s (release, manual)
 
 stages:
   - build
@@ -28,22 +30,11 @@ variables:
   STACK_VERSION: "3.11.1"
 
 # ============================================================================
-# Cache template for Stack dependencies
-# ============================================================================
-# Keyed by lockfile + cabal file so the cache invalidates when deps change.
-.stack-cache: &stack-cache
-  key:
-    files:
-      - stack.yaml.lock
-      - jktlug-website.cabal
-    prefix: stack
-  paths:
-    - ~/.stack/
-  policy: pull-push
-
-# ============================================================================
 # Job template for native Stack builds
 # ============================================================================
+# Note: no GitLab `cache:` for ~/.stack — these jobs run on the shell executor,
+# so ~/.stack persists on the host disk between jobs. The cache mechanism
+# (compress/upload/download/decompress) would be pure overhead here.
 .stack-build:
   image: debian:trixie
   before_script:
@@ -62,8 +53,6 @@ build-site:
   extends: .stack-build
   stage: build
   tags: [shell]
-  cache:
-    <<: *stack-cache
   script:
     - stack setup --no-terminal
     - stack build --dependencies-only --no-terminal
@@ -81,9 +70,6 @@ run-tests:
   extends: .stack-build
   stage: test
   tags: [shell]
-  cache:
-    <<: *stack-cache
-    policy: pull  # read-only: avoid cache churn from test jobs
   script:
     - stack build --test --no-terminal
   dependencies: []  # tests don't need the compiled site artifact
@@ -138,9 +124,12 @@ docker-build:
     - docker push "$IMAGE_NAME:$CI_COMMIT_SHA"
     - docker push "$IMAGE_NAME:latest"
   rules:
-    # disabled: GitLab Container Registry is not enabled on the local instance.
-    # Re-enable by removing `when: never` once the registry is configured.
-    - when: never
+    # Release path (push to main). Disabled until a registry is configured —
+    # the GitLab Container Registry is not enabled on the local instance.
+    # To enable: drop `when: never` (and point IMAGE_NAME at Docker Hub or
+    # enable the registry).
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never
 
 # ============================================================================
 # Alternative: Full multi-stage Docker build (no native Stack)
@@ -210,7 +199,8 @@ docker-build-dev:
       - image.tar
     expire_in: 1 hour
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    # Dev loop: pushing to the `dev` branch deploys to the local k3s (jktlug-dev).
+    - if: $CI_COMMIT_BRANCH == "dev"
 
 # Step 2: import the tarball into the host k3s containerd and roll out.
 deploy-k3s-dev:
@@ -239,7 +229,8 @@ deploy-k3s-dev:
     - kubectl --insecure-skip-tls-verify rollout restart "deployment/$DEV_DEPLOYMENT" -n "$DEV_NAMESPACE"
     - kubectl --insecure-skip-tls-verify rollout status "deployment/$DEV_DEPLOYMENT" -n "$DEV_NAMESPACE" --timeout=120s
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    # Dev loop: pushing to the `dev` branch deploys to the local k3s (jktlug-dev).
+    - if: $CI_COMMIT_BRANCH == "dev"
 
 # ============================================================================
 # Stage: k3s-deploy  (PRODUCTION, via GitLab Container Registry)
@@ -272,4 +263,7 @@ deploy-k3s:
         --namespace "$DEPLOYMENT_NAMESPACE" \
         --timeout=120s
   rules:
-    - when: never  # disabled: GitLab Container Registry not enabled on local instance
+    # Release path (push to main). Manual gate: review before prod deploy.
+    # Disabled until a registry is configured (see docker-build above).
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: never

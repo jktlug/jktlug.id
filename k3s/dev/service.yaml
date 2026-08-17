@@ -7,12 +7,14 @@ metadata:
     app.kubernetes.io/name: jktlug-website
     app.kubernetes.io/instance: dev
 spec:
-  type: ClusterIP
+  # LoadBalancer => k3s Klipper LB binds this port on the host, so the site
+  # is always reachable at http://localhost:8080 — no port-forward needed.
+  type: LoadBalancer
   selector:
     app.kubernetes.io/name: jktlug-website
     app.kubernetes.io/instance: dev
   ports:
     - name: http
-      port: 80
+      port: 8080
       targetPort: 8080
       protocol: TCP

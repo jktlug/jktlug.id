@@ -44,14 +44,11 @@ TRAEFIK_IP="$(kubectl get svc traefik -n kube-system \
 
 cat <<EOF
 
-==> Done. Access the dev site via:
+==> Done. The dev site is exposed via k3s Klipper LB:
 
-    # Option A: port-forward (no setup)
-    kubectl port-forward -n $NAMESPACE svc/jktlug-website 8080:80
-    # then open http://localhost:8080
+    http://localhost:8080        (always on, no port-forward needed)
 
-    # Option B: ingress via Traefik
-    # add this line to /etc/hosts:
-    ${TRAEFIK_IP:-<traefik-ip>}  JKTLUG.local
-    # then open http://JKTLUG.local
+    # Alternative: ingress via Traefik — add to /etc/hosts:
+    ${TRAEFIK_IP:-<traefik-ip>}  jktlug.local
+    # then open http://jktlug.local
 EOF
