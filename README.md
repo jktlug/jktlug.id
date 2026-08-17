@@ -1,4 +1,4 @@
-jkjktlug.id: Jakarta Linux Users Group Website
+jktlug.id: Jakarta Linux Users Group Website
 =============================================
 
 This is the website for the [Jakarta Linux Users Group](https://jkjktlug.id).
@@ -32,7 +32,7 @@ branch. Configure Netlify to serve from that branch.
 ## Project Structure
 
 - `app/SiteCompiler.hs` — Hakyll compiler rules
-- `src/JKjktlug/` — Wiki parser and link fixer modules
+- `src/jktlug/` — Wiki parser and link fixer modules
 - `docroot/` — Static HTML, CSS, images
 - `wiki/` — MediaWiki markup content
 - `template/` — Hakyll HTML templates

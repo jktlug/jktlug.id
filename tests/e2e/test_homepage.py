@@ -10,7 +10,7 @@ def test_homepage_about_section(page):
     page.goto("/")
     about = page.locator("#about")
     assert about.is_visible()
-    assert "Jakarta Linux Users' Group" in about.inner_text()
+    assert "Jakarta Linux Users Group" in about.inner_text()
 
 
 def test_homepage_navigation_menu(page):

@@ -1,0 +1,102 @@
+# Development variant of ../deployment.yaml for a local single-node k3s.
+# Differences from production:
+#   - namespace jktlug-dev, 1 replica, no HPA/PDB
+#   - image is built locally and imported into k3s containerd (bin/dev-deploy.sh)
+#   - imagePullPolicy IfNotPresent so k3s never tries to reach a registry
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jktlug-website
+  namespace: jktlug-dev
+  labels:
+    app.kubernetes.io/name: jktlug-website
+    app.kubernetes.io/instance: dev
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jktlug-website
+      app.kubernetes.io/instance: dev
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jktlug-website
+        app.kubernetes.io/instance: dev
+        app.kubernetes.io/component: web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 33
+        runAsGroup: 33
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: nginx
+          # Locally built via Dockerfile.runtime; loaded with `k3s ctr images import`.
+          image: docker.io/library/jktlug-website:dev
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: logs
+              mountPath: /var/log/nginx
+            - name: lib
+              mountPath: /var/lib/nginx
+            - name: run
+              mountPath: /run
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
+        - name: lib
+          emptyDir: {}
+        - name: run
+          emptyDir: {}

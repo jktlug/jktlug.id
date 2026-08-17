@@ -1,0 +1,24 @@
+# Development ingress: serves the site on jktlug.local via the k3s Traefik.
+# Add to /etc/hosts:  <traefik-external-ip>  jktlug.local
+# (bin/dev-deploy.sh prints the exact line for you.)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jktlug-website
+  namespace: jktlug-dev
+  labels:
+    app.kubernetes.io/name: jktlug-website
+    app.kubernetes.io/instance: dev
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: jktlug.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jktlug-website
+                port:
+                  number: 80
