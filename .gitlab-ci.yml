@@ -47,24 +47,6 @@ variables:
 .stack-build:
   image: debian:trixie
   before_script:
-    - apt-get update
-    - apt-get install -y --no-install-recommends
-        bash
-        ca-certificates
-        curl
-        git
-        gnupg
-        pkg-config
-        sudo
-        zlib1g-dev
-        libgmp-dev
-        libffi-dev
-        libncurses-dev
-        make
-        python3
-        python3-pip
-        build-essential
-        dpkg-dev
     # Install Stack if not already present (debian:trixie may have an old one)
     - |
       if ! command -v stack &> /dev/null || ! stack --version | grep -q "$STACK_VERSION"; then
