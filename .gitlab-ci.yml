@@ -112,7 +112,7 @@ docker-build:
     DOCKER_DRIVER: overlay2
     DOCKER_BUILDKIT: 1
     DOCKER_TLS_CERTDIR: ""
-    DOCKERHUB_IMAGE: yourusername/jktlug-website
+    DOCKERHUB_IMAGE: adipginting/jktlug-website
   before_script:
     - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
   script:
@@ -243,7 +243,7 @@ deploy-k3s:
     DEPLOYMENT_NAMESPACE: jktlug
     DEPLOYMENT_NAME: jktlug-website
     CONTAINER_NAME: nginx
-    DOCKERHUB_IMAGE: yourusername/jktlug-website
+    DOCKERHUB_IMAGE: adipginting/jktlug-website
 
   before_script:
     - kubectl version --client
