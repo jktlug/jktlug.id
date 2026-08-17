@@ -155,7 +155,9 @@ docker-build:
     - docker push "$IMAGE_NAME:$CI_COMMIT_SHA"
     - docker push "$IMAGE_NAME:latest"
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    # disabled: GitLab Container Registry is not enabled on the local instance.
+    # Re-enable by removing `when: never` once the registry is configured.
+    - when: never
 
 # ============================================================================
 # Alternative: Full multi-stage Docker build (no native Stack)
@@ -187,9 +189,80 @@ docker-build:
 #     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 # ============================================================================
-# Stage: k3s-deploy  (optional)
+# Stage: k3s-deploy  (LOCAL DEV — no registry needed)
+# ============================================================================
+# Builds the runtime image in dind, imports it directly into the host k3s
+# containerd (no registry needed), and rolls out the dev deployment in
+# namespace jktlug-dev. Same flow as bin/dev-deploy.sh.
+#
+# Runner requirements (already configured in the local runner's config.toml):
+#   volumes     = ["...",
+#                  "/run/k3s/containerd/containerd.sock:/run/k3s/containerd/containerd.sock",
+#                  "/etc/rancher/k3s/k3s.yaml:/etc/rancher/k3s/k3s.yaml:ro"]
+#   extra_hosts = ["host.docker.internal:host-gateway"]
+# Host firewall (one-time, on the k3s host):
+#   sudo ufw allow from 172.16.0.0/12 to any port 6443 proto tcp
+
+# Step 1: build the runtime image and export it as a tarball artifact.
+# (Two-job design: the rancher/k3s image used below has ctr/kubectl but no
+# docker CLI and no apk to install one, and no registry is enabled locally.)
+docker-build-dev:
+  stage: containerize
+  image: docker:24
+  tags: [docker]
+  services:
+    - docker:24-dind
+  dependencies:
+    - build-site
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_BUILDKIT: 1
+    DEV_IMAGE: docker.io/library/jktlug-website:dev
+  script:
+    - docker build -f Dockerfile.runtime -t "$DEV_IMAGE" .
+    - docker save -o image.tar "$DEV_IMAGE"
+  artifacts:
+    paths:
+      - image.tar
+    expire_in: 1 hour
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# Step 2: import the tarball into the host k3s containerd and roll out.
+deploy-k3s-dev:
+  stage: k3s-deploy
+  image:
+    name: rancher/k3s:v1.31.5-k3s1   # /bin/ctr and /bin/kubectl are symlinks to k3s
+    entrypoint: [""]
+  tags: [docker]
+  dependencies:
+    - docker-build-dev
+  variables:
+    DEV_NAMESPACE: jktlug-dev
+    DEV_DEPLOYMENT: jktlug-website
+  script:
+    # Import the image into the host k3s containerd via the mounted socket.
+    # NOTE: call ctr/kubectl directly (symlinks), NOT `k3s ctr` / `k3s kubectl`.
+    - ctr --address /run/k3s/containerd/containerd.sock -n k8s.io images import image.tar
+    # Point kubectl at the host k3s API via the Docker host gateway.
+    # CA data is dropped and TLS verification skipped: the k3s server cert
+    # has no SAN for the gateway IP. Client-cert auth is kept.
+    - |
+      cp /etc/rancher/k3s/k3s.yaml /tmp/kubeconfig
+      sed -i -e 's#https://127.0.0.1:6443#https://host.docker.internal:6443#' \
+             -e '/certificate-authority-data/d' /tmp/kubeconfig
+    - export KUBECONFIG=/tmp/kubeconfig
+    - kubectl --insecure-skip-tls-verify rollout restart "deployment/$DEV_DEPLOYMENT" -n "$DEV_NAMESPACE"
+    - kubectl --insecure-skip-tls-verify rollout status "deployment/$DEV_DEPLOYMENT" -n "$DEV_NAMESPACE" --timeout=120s
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ============================================================================
+# Stage: k3s-deploy  (PRODUCTION, via GitLab Container Registry)
 # ============================================================================
 # Requires:
+#   - GitLab Container Registry enabled on this instance (NOT enabled locally,
+#     so this job is disabled: `when: never`)
 #   - A GitLab CI/CD variable KUBECONFIG (file type) containing the kubeconfig
 #   - Or a runner with kubectl and a pre-configured kubeconfig
 #
@@ -215,6 +288,4 @@ deploy-k3s:
         --namespace "$DEPLOYMENT_NAMESPACE" \
         --timeout=120s
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: manual  # require button click in GitLab UI
-      allow_failure: true
+    - when: never  # disabled: GitLab Container Registry not enabled on local instance

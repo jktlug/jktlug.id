@@ -45,6 +45,30 @@ The existing `Dockerfile` uses **BuildKit cache mounts** (`RUN --mount=type=cach
 6. **Push** the image to GitLab Container Registry.
 7. **(Optional) Deploy** to K3s using `kubectl` or a GitLab Agent.
 
+### Local development: CI → local k3s dev (no registry)
+For a fully local loop (local GitLab CE + local k3s), the pipeline deploys to the
+`jktlug-dev` namespace **without any container registry**:
+
+1. `docker-build-dev` (dind): builds `Dockerfile.runtime` and exports the image as
+   an `image.tar` artifact.
+2. `deploy-k3s-dev` (`rancher/k3s` image): imports the tarball directly into the
+   host k3s containerd via the mounted socket, then `kubectl rollout restart` in
+   `jktlug-dev`. Same flow as `bin/dev-deploy.sh`.
+
+One-time host setup (already done on this machine):
+- Runner `config.toml` `[runners.docker]`:
+  ```toml
+  volumes = ["/cache",
+    "/run/k3s/containerd/containerd.sock:/run/k3s/containerd/containerd.sock",
+    "/etc/rancher/k3s/k3s.yaml:/etc/rancher/k3s/k3s.yaml:ro"]
+  extra_hosts = ["host.docker.internal:host-gateway"]
+  ```
+- Firewall: `sudo ufw allow from 172.16.0.0/12 to any port 6443 proto tcp`
+  (ufw blocks Docker bridge → host traffic to the k3s API otherwise).
+- Gotcha: in the `rancher/k3s` image, call `ctr`/`kubectl` directly (they are
+  symlinks to the k3s multicall binary) — `k3s ctr` / `k3s kubectl` misbehave,
+  and there is no `apk` to install extra packages.
+
 ### Alternative approach: "Full Docker Build with Registry Cache"
 If you prefer to keep a single `Dockerfile` and avoid native Stack builds in CI:
 - Use `docker buildx` with `--cache-from type=registry,ref=...` and `--cache-to type=registry,ref=...`.
@@ -183,5 +207,5 @@ Then uncomment `imagePullSecrets` in `k3s/deployment.yaml`.
 ├── k3s/
 │   ├── deployment.yaml     # Points to GitLab Registry image
 │   └── ...
-└── GITLAB_CICD_PLAN.md     # This document
+└── doc/gitlab-ci-cd-plan.md # This document
 ```
