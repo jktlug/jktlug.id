@@ -25,7 +25,7 @@ variables:
   # GitLab Container Registry image name
   IMAGE_NAME: $CI_REGISTRY_IMAGE
   # Stack version matching the Dockerfile
-  STACK_VERSION: "3.1.1"
+  STACK_VERSION: "3.11.1"
 
 # ============================================================================
 # Cache template for Stack dependencies
