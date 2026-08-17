@@ -36,9 +36,9 @@ variables:
 # so ~/.stack persists on the host disk between jobs. The cache mechanism
 # (compress/upload/download/decompress) would be pure overhead here.
 .stack-build:
-  image: debian:trixie
+  image: debian:13
   before_script:
-    # Install Stack if not already present (debian:trixie may have an old one)
+    # Install Stack if not already present (debian:13 may have an old one)
     - |
       if ! command -v stack &> /dev/null || ! stack --version | grep -q "$STACK_VERSION"; then
         echo "Installing Stack ${STACK_VERSION}..."
@@ -111,25 +111,17 @@ docker-build:
   variables:
     DOCKER_DRIVER: overlay2
     DOCKER_BUILDKIT: 1
-    DOCKER_TLS_CERTDIR: ""  
+    DOCKER_TLS_CERTDIR: ""
+    DOCKERHUB_IMAGE: yourusername/jktlug-website
   before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
   script:
-    - |
-      docker build \
-        -f Dockerfile.runtime \
-        -t "$IMAGE_NAME:$CI_COMMIT_SHA" \
-        -t "$IMAGE_NAME:latest" \
-        .
-    - docker push "$IMAGE_NAME:$CI_COMMIT_SHA"
-    - docker push "$IMAGE_NAME:latest"
+    - docker build -f Dockerfile.runtime -t "$DOCKERHUB_IMAGE:$CI_COMMIT_SHA" .
+    - docker build -f Dockerfile.runtime -t "$DOCKERHUB_IMAGE:latest" .
+    - docker push "$DOCKERHUB_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$DOCKERHUB_IMAGE:latest"
   rules:
-    # Release path (push to main). Disabled until a registry is configured —
-    # the GitLab Container Registry is not enabled on the local instance.
-    # To enable: drop `when: never` (and point IMAGE_NAME at Docker Hub or
-    # enable the registry).
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: never
 
 # ============================================================================
 # Alternative: Full multi-stage Docker build (no native Stack)
@@ -251,19 +243,21 @@ deploy-k3s:
     DEPLOYMENT_NAMESPACE: jktlug
     DEPLOYMENT_NAME: jktlug-website
     CONTAINER_NAME: nginx
+    DOCKERHUB_IMAGE: yourusername/jktlug-website
+
   before_script:
     - kubectl version --client
+
   script:
     - |
       kubectl set image deployment/$DEPLOYMENT_NAME \
-        $CONTAINER_NAME="$IMAGE_NAME:$CI_COMMIT_SHA" \
+        $CONTAINER_NAME="$DOCKERHUB_IMAGE:$CI_COMMIT_SHA" \
         --namespace "$DEPLOYMENT_NAMESPACE"
+
     - |
       kubectl rollout status deployment/$DEPLOYMENT_NAME \
         --namespace "$DEPLOYMENT_NAMESPACE" \
         --timeout=120s
+
   rules:
-    # Release path (push to main). Manual gate: review before prod deploy.
-    # Disabled until a registry is configured (see docker-build above).
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: never
