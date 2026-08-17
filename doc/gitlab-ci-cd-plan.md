@@ -47,7 +47,10 @@ The existing `Dockerfile` uses **BuildKit cache mounts** (`RUN --mount=type=cach
 
 ### Local development: CI → local k3s dev (no registry)
 For a fully local loop (local GitLab CE + local k3s), the pipeline deploys to the
-`jktlug-dev` namespace **without any container registry**:
+`jktlug-dev` namespace **without any container registry**. Branch strategy:
+**push to `dev`** → build + deploy to local k3s (jktlug-dev);
+**push to `main`** → Pages + release jobs (`docker-build`/`deploy-k3s`,
+manual-gated, currently disabled until a registry is configured).
 
 1. `docker-build-dev` (dind): builds `Dockerfile.runtime` and exports the image as
    an `image.tar` artifact.
