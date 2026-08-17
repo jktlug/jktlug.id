@@ -1,4 +1,4 @@
-# Private Docker Registry for jktlug.id
+# Private Docker Registry for JKTLUG.id
 
 Lightweight registry stack for a humble VPS. Runs Docker Registry behind
 Caddy (automatic HTTPS + basic auth).
@@ -6,7 +6,7 @@ Caddy (automatic HTTPS + basic auth).
 ## Requirements
 
 - A VPS with Docker + Docker Compose
-- A domain or subdomain pointing at the VPS (e.g. `registry.jktlug.id`)
+- A domain or subdomain pointing at the VPS (e.g. `registry.JKTLUG.id`)
 - Ports 80 and 443 open
 
 ## Quick start
@@ -24,7 +24,7 @@ docker compose up -d
 
 # 4. Verify
 # Caddy will auto-provision a Let's Encrypt certificate.
-curl -u jktlug:yourpassword https://registry.jktlug.id/v2/_catalog
+curl -u jktlug:yourpassword https://registry.JKTLUG.id/v2/_catalog
 ```
 
 ## Storage

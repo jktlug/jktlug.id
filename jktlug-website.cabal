@@ -2,11 +2,11 @@ cabal-version:          2.2
 name:                   jktlug-website
 version:                0.0.0.0
 synopsis:               The Jakarta Linux Users Group Website
-homepage:               https://github.com/jktlug/jktlug.id#readme
+homepage:               https://github.com/jktlug/JKTLUG.id#readme
 license:                CC-BY-4.0
 license-file:           LICENSE.md
 author:                 JKTLUG
-maintainer:             https://github.com/jktlug/jktlug.id/issues
+maintainer:             https://github.com/jktlug/JKTLUG.id/issues
 copyright:              2026 Jakarta Linux Users Group
 category:               website
 build-type:             Simple

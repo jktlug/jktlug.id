@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for jktlug.jp
+# Multi-stage Dockerfile for JKTLUG.jp
 # Builds the static site inside Docker, then serves with Nginx.
 # Uses BuildKit cache mounts to persist Stack/GHC between builds.
 

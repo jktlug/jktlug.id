@@ -1,6 +1,6 @@
-# K3s Deployment for jktlug.id
+# K3s Deployment for JKTLUG.id
 
-These manifests deploy the **jktlug.id** static site to a [K3s](https://k3s.io/) cluster using the production Docker image built by GitHub Actions and pushed to GitHub Container Registry (GHCR).
+These manifests deploy the **JKTLUG.id** static site to a [K3s](https://k3s.io/) cluster using the production Docker image built by GitHub Actions and pushed to GitHub Container Registry (GHCR).
 
 ## Files
 
@@ -9,7 +9,7 @@ These manifests deploy the **jktlug.id** static site to a [K3s](https://k3s.io/)
 | `namespace.yaml` | Isolates the application in its own namespace (`jktlug`). |
 | `deployment.yaml` | Runs the site container with rolling updates, probes, and resource limits. |
 | `service.yaml` | Exposes the deployment inside the cluster via `ClusterIP`. |
-| `ingress.yaml` | Routes external traffic from `jktlug.id` / `www.jktlug.id` to the service. |
+| `ingress.yaml` | Routes external traffic from `JKTLUG.id` / `www.JKTLUG.id` to the service. |
 | `hpa.yaml` | Automatically scales replicas based on CPU/memory utilization. |
 | `pdb.yaml` | Ensures at least one pod stays available during node maintenance. |
 
@@ -18,9 +18,9 @@ These manifests deploy the **jktlug.id** static site to a [K3s](https://k3s.io/)
 1. A running K3s cluster (single-node or multi-node).
 2. The GitHub Actions CI/CD workflow has pushed an image to GHCR:
    ```
-   ghcr.io/jktlug/jktlug.id:latest
+   ghcr.io/jktlug/JKTLUG.id:latest
    ```
-3. DNS A/AAAA records pointing `jktlug.id` and `www.jktlug.id` to your K3s node(s) or a load balancer in front of them.
+3. DNS A/AAAA records pointing `JKTLUG.id` and `www.JKTLUG.id` to your K3s node(s) or a load balancer in front of them.
 4. (Optional) If the GHCR image is **private**, create a pull secret first:
    ```bash
    kubectl create secret docker-registry ghcr-pull-secret \
@@ -58,8 +58,8 @@ To enable automatic HTTPS with Let's Encrypt on K3s, the easiest path is to inst
 ```yaml
 tls:
   - hosts:
-      - jktlug.id
-      - www.jktlug.id
+      - JKTLUG.id
+      - www.JKTLUG.id
     secretName: jktlug-tls
 ```
 

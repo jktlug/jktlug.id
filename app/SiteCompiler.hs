@@ -113,7 +113,7 @@ makeRedir redir body =
 -- when the page has no namespace (@href="JKTLUG_Timeline"@) but breaks in
 -- browsers when a namespace is present, as in @href="JKTLUG:Organization"@,
 -- because that's interpreted as @jktlug://Organization@ rather than
--- @http://www.jktlug.id/wiki/JKTLUG:Organization@.
+-- @http://www.JKTLUG.id/wiki/JKTLUG:Organization@.
 --
 -- MediaWiki deals with these by generating @/wiki/...@ URLs for all pages
 -- within the wiki. Unfortunately, we can't tell at this stage whether

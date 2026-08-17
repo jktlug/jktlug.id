@@ -20,12 +20,12 @@ spec:
   # Otherwise, uncomment and reference a TLS secret:
   # tls:
   #   - hosts:
-  #       - jktlug.id
-  #       - www.jktlug.id
+  #       - JKTLUG.id
+  #       - www.JKTLUG.id
   #     secretName: jktlug-tls
 
   rules:
-    - host: jktlug.id
+    - host: JKTLUG.id
       http:
         paths:
           - path: /
@@ -35,7 +35,7 @@ spec:
                 name: jktlug-website
                 port:
                   number: 80
-    - host: www.jktlug.id
+    - host: www.JKTLUG.id
       http:
         paths:
           - path: /

@@ -3,10 +3,10 @@
 # then restart k3s: sudo systemctl restart k3s
 #
 # This tells k3s how to authenticate with the private registry at
-# registry.jktlug.id. Update the username/password to match your
+# registry.JKTLUG.id. Update the username/password to match your
 # Caddyfile basic auth credentials.
 configs:
-  "registry.jktlug.id":
+  "registry.JKTLUG.id":
     auth:
       username: jktlug
       password: changeme

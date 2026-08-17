@@ -8,8 +8,8 @@ on:
 
 env:
   # Your private registry domain
-  REGISTRY: registry.jktlug.id
-  IMAGE_NAME: jktlug/jktlug.id
+  REGISTRY: registry.JKTLUG.id
+  IMAGE_NAME: jktlug/JKTLUG.id
 
 jobs:
   # --------------------------------------------------------------------------

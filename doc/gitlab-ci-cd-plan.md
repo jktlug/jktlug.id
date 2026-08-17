@@ -1,7 +1,7 @@
-# GitLab CI/CD Plan for jktlug.id
+# GitLab CI/CD Plan for JKTLUG.id
 
 ## Goal
-Migrate (or extend) the jktlug.id build and deployment pipeline to **GitLab CI/CD**, leveraging:
+Migrate (or extend) the JKTLUG.id build and deployment pipeline to **GitLab CI/CD**, leveraging:
 1. **GitLab Pages** for static site hosting (alternative to GitHub Pages).
 2. **GitLab Container Registry** for the production Nginx Docker image.
 3. **Existing K3s manifests** for deployment to a K3s cluster.
@@ -120,7 +120,7 @@ If you prefer to keep a single `Dockerfile` and avoid native Stack builds in CI:
 - **Depends on:** `build-site`
 - **Script:** `mv _site public`
 - **Rules:** Only on default branch (`main`).
-- **Result:** Site available at `https://<namespace>.gitlab.io/jktlug.id` or a custom domain.
+- **Result:** Site available at `https://<namespace>.gitlab.io/JKTLUG.id` or a custom domain.
 
 ### 4. `docker-build` (stage: containerize)
 - **Image:** `docker:24` with `docker:24-dind` service.
@@ -154,7 +154,7 @@ Go to **Settings → CI/CD → Variables**:
 ### Step 2: Configure Pages domain (optional)
 If using a custom domain for GitLab Pages:
 1. Add `CNAME` or `TXT` DNS records as instructed in GitLab.
-2. Create a `public/CNAME` file during the `pages` job (e.g., `echo "jktlug.id" > public/CNAME`).
+2. Create a `public/CNAME` file during the `pages` job (e.g., `echo "JKTLUG.id" > public/CNAME`).
 
 ### Step 3: Configure Container Registry
 No extra steps needed. GitLab provides `$CI_REGISTRY`, `$CI_REGISTRY_USER`, and `$CI_REGISTRY_PASSWORD` automatically.
@@ -162,7 +162,7 @@ No extra steps needed. GitLab provides `$CI_REGISTRY`, `$CI_REGISTRY_USER`, and 
 ### Step 4: Update K3s manifests for GitLab Registry
 In `k3s/deployment.yaml`, update the image:
 ```yaml
-image: registry.gitlab.com/<namespace>/jktlug.id:latest
+image: registry.gitlab.com/<namespace>/JKTLUG.id:latest
 ```
 If the registry is private, create a pull secret:
 ```bash

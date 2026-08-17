@@ -1,4 +1,4 @@
-registry.jktlug.id {
+registry.JKTLUG.id {
     reverse_proxy registry:5000
 
     basicauth {

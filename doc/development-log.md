@@ -107,7 +107,7 @@ build-site → run-tests → pages (GitLab Pages)
 **Important discrepancy noted:**
 
 - `.gitlab-ci.yml` pushes to **GitLab Container Registry** (`$CI_REGISTRY_IMAGE`).
-- `k3s/README.md` references **GHCR** (`ghcr.io/jktlug/jktlug.id`).
+- `k3s/README.md` references **GHCR** (`ghcr.io/jktlug/JKTLUG.id`).
 
 This suggests the project may have historically used GitHub Actions, while the
 GitLab CI file was added later. The registries need to be aligned for a single
@@ -140,14 +140,14 @@ GitHub Actions Runner
     ├── build job ──► compiles _site/
     │
     ├── push-image job ──► builds Dockerfile.runtime
-    │                      pushes to registry.jktlug.id/jktlug/jktlug.id:<sha>
+    │                      pushes to registry.JKTLUG.id/jktlug/JKTLUG.id:<sha>
     │
     └── deploy-k3s job ──► kubectl set image
                            kubectl rollout status
                               │
                               ▼
                         k3s cluster (same VPS or elsewhere)
-                        pulls image from registry.jktlug.id
+                        pulls image from registry.JKTLUG.id
 ```
 
 **Required GitHub secrets:**
@@ -173,7 +173,7 @@ sudo systemctl restart k3s
 
 **Changes:**
 
-- `REGISTRY` changed from `ghcr.io` to `registry.jktlug.id`
+- `REGISTRY` changed from `ghcr.io` to `registry.JKTLUG.id`
 - Login step now uses `secrets.REGISTRY_USERNAME` and `secrets.REGISTRY_PASSWORD`
   instead of `GITHUB_TOKEN`
 - `push-image` job now explicitly builds `Dockerfile.runtime` and pushes to the
@@ -184,7 +184,7 @@ sudo systemctl restart k3s
 **k3s manifest updated:**
 
 - `k3s/deployment.yaml` now defaults to
-  `registry.jktlug.id/jktlug/jktlug.id:latest`
+  `registry.JKTLUG.id/jktlug/JKTLUG.id:latest`
 
 ---
 
@@ -215,7 +215,7 @@ tests/e2e/test_wiki.py               (new)
 1. **Unit test coverage:** Consider adding `WikiLinkTest.hs` and
    `WikiParamTest.hs` to the Haskell HTF suite.
 2. **TLS for registry:** Caddy handles this automatically, but ensure
-   `registry.jktlug.id` DNS points to the VPS before starting Caddy.
+   `registry.JKTLUG.id` DNS points to the VPS before starting Caddy.
 3. **Registry backup:** `./registry/data/` should be included in backup
    strategy.
 4. **Image retention:** The registry will grow over time. Consider setting up

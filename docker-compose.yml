@@ -11,7 +11,7 @@ services:
         restart: unless-stopped
         # If you run behind a reverse proxy (e.g. Traefik, Caddy, or another
         # nginx on the host), you can expose only internally and let the proxy
-        # handle TLS / jktlug.id:
+        # handle TLS / JKTLUG.id:
         # ports: []
         # networks:
         #   - proxy

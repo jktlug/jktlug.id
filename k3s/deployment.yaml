@@ -45,7 +45,7 @@ spec:
         - name: nginx
           # Pin to a specific commit SHA in production instead of :latest.
           # GitHub Actions pushes tags: latest and <git-sha>.
-          image: registry.jktlug.id/jktlug/jktlug.id:latest
+          image: registry.JKTLUG.id/jktlug/JKTLUG.id:latest
           imagePullPolicy: Always
 
           ports:

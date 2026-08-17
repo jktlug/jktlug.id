@@ -1,11 +1,11 @@
-jktlug.id: Jakarta Linux Users Group Website
+JKTLUG.id: Jakarta Linux Users Group Website
 =============================================
 
 This is the website for the [Jakarta Linux Users Group](https://jkjktlug.id).
 It is a static site generated with [Hakyll] and deployed via [Netlify].
 
 This repository was originally forked from the [Tokyo Linux Users Group]
-(jktlug/jktlug.jp) website and is being migrated for Jakarta/Indonesia use.
+(tlug.jp) website and is being migrated for Jakarta/Indonesia use.
 
 ## Building
 
@@ -32,7 +32,7 @@ branch. Configure Netlify to serve from that branch.
 ## Project Structure
 
 - `app/SiteCompiler.hs` — Hakyll compiler rules
-- `src/jktlug/` — Wiki parser and link fixer modules
+- `src/JKTLUG/` — Wiki parser and link fixer modules
 - `docroot/` — Static HTML, CSS, images
 - `wiki/` — MediaWiki markup content
 - `template/` — Hakyll HTML templates
@@ -46,4 +46,4 @@ See the `doc/` directory for developer notes:
 
 [Hakyll]: https://jaspervdj.be/hakyll/
 [Netlify]: https://www.netlify.com/
-[Tokyo Linux Users Group]: https://jktlug.jp
+[Tokyo Linux Users Group]: https://JKTLUG.jp

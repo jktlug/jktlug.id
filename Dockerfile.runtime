@@ -1,5 +1,5 @@
 # Dockerfile.runtime
-# Lightweight production image for jktlug.id
+# Lightweight production image for JKTLUG.id
 #
 # Use this in CI/CD after the site has been built natively with Stack.
 # It skips the entire Haskell/Stack builder stage and simply serves the

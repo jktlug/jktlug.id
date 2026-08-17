@@ -52,6 +52,6 @@ cat <<EOF
 
     # Option B: ingress via Traefik
     # add this line to /etc/hosts:
-    ${TRAEFIK_IP:-<traefik-ip>}  jktlug.local
-    # then open http://jktlug.local
+    ${TRAEFIK_IP:-<traefik-ip>}  JKTLUG.local
+    # then open http://JKTLUG.local
 EOF
