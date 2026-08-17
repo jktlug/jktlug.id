@@ -123,53 +123,6 @@ docker-build:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-# ============================================================================
-# Alternative: Full multi-stage Docker build (no native Stack)
-# ============================================================================
-# Use this if you want a single Dockerfile and don't mind slower cache-miss
-# builds. Requires buildx for decent layer caching.
-#
-# docker-build-full:
-#   stage: containerize
-#   image: docker:24
-#   services:
-#     - docker:24-dind
-#   variables:
-#     DOCKER_DRIVER: overlay2
-#     DOCKER_BUILDKIT: 1
-#   before_script:
-#     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-#     - docker buildx create --use --name gitlab-builder || docker buildx use gitlab-builder
-#   script:
-#     - |
-#       docker buildx build \
-#         --cache-from type=registry,ref="$IMAGE_NAME/cache" \
-#         --cache-to type=registry,ref="$IMAGE_NAME/cache",mode=max \
-#         --push \
-#         -t "$IMAGE_NAME:$CI_COMMIT_SHA" \
-#         -t "$IMAGE_NAME:latest" \
-#         .
-#   rules:
-#     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
-# ============================================================================
-# Stage: k3s-deploy  (LOCAL DEV — no registry needed)
-# ============================================================================
-# Builds the runtime image in dind, imports it directly into the host k3s
-# containerd (no registry needed), and rolls out the dev deployment in
-# namespace jktlug-dev. Same flow as bin/dev-deploy.sh.
-#
-# Runner requirements (already configured in the local runner's config.toml):
-#   volumes     = ["...",
-#                  "/run/k3s/containerd/containerd.sock:/run/k3s/containerd/containerd.sock",
-#                  "/etc/rancher/k3s/k3s.yaml:/etc/rancher/k3s/k3s.yaml:ro"]
-#   extra_hosts = ["host.docker.internal:host-gateway"]
-# Host firewall (one-time, on the k3s host):
-#   sudo ufw allow from 172.16.0.0/12 to any port 6443 proto tcp
-
-# Step 1: build the runtime image and export it as a tarball artifact.
-# (Two-job design: the rancher/k3s image used below has ctr/kubectl but no
-# docker CLI and no apk to install one, and no registry is enabled locally.)
 docker-build-dev:
   stage: containerize
   image: docker:24
@@ -236,9 +189,16 @@ deploy-k3s-dev:
 # This job is set to manual trigger for safety. Remove "when: manual" to auto-deploy.
 deploy-k3s:
   stage: k3s-deploy
-  image: bitnami/kubectl:latest
-  tags: [docker]
+
+  image:
+    name: bitnami/kubectl:latest
+    entrypoint: [""]
+
+  tags:
+    - docker
+
   dependencies: []
+
   variables:
     DEPLOYMENT_NAMESPACE: jktlug
     DEPLOYMENT_NAME: jktlug-website
@@ -247,15 +207,18 @@ deploy-k3s:
 
   before_script:
     - kubectl version --client
+    - kubectl --kubeconfig="$KUBECONFIG" get nodes
 
   script:
     - |
-      kubectl set image deployment/$DEPLOYMENT_NAME \
+      kubectl --kubeconfig="$KUBECONFIG" set image \
+        deployment/$DEPLOYMENT_NAME \
         $CONTAINER_NAME="$DOCKERHUB_IMAGE:$CI_COMMIT_SHA" \
         --namespace "$DEPLOYMENT_NAMESPACE"
 
     - |
-      kubectl rollout status deployment/$DEPLOYMENT_NAME \
+      kubectl --kubeconfig="$KUBECONFIG" rollout status \
+        deployment/$DEPLOYMENT_NAME \
         --namespace "$DEPLOYMENT_NAMESPACE" \
         --timeout=120s
 
