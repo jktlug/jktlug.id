@@ -4,8 +4,7 @@ JKTLUG.id: Jakarta Linux Users Group Website
 This is the website for the [Jakarta Linux Users Group](https://jktlug.id).
 It is a static site generated with [Hakyll] and deployed on a k3s node on a VPS.
 
-This repository was originally forked from the [Tokyo Linux Users Group]
-(tlug.jp) website and is being migrated for Jakarta/Indonesia use.
+This repository was originally forked from the [Tokyo Linux Users Group](tlug.jp) website and is being migrated for Jakarta/Indonesia use.
 
 ## Building
 
