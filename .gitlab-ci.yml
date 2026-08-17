@@ -79,7 +79,7 @@ variables:
 build-site:
   extends: .stack-build
   stage: build
-  tags: [docker]
+  tags: [shell]
   cache:
     <<: *stack-cache
   script:
@@ -98,7 +98,7 @@ build-site:
 run-tests:
   extends: .stack-build
   stage: test
-  tags: [docker]
+  tags: [shell]
   cache:
     <<: *stack-cache
     policy: pull  # read-only: avoid cache churn from test jobs
