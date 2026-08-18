@@ -210,6 +210,15 @@ deploy-k3s:
     - kubectl --kubeconfig="$KUBECONFIG" get nodes
 
   script:
+    # Ensure the namespace exists
+    - kubectl --kubeconfig="$KUBECONFIG" apply -f k3s/namespace.yaml
+
+    # Create/update Kubernetes resources
+    - kubectl --kubeconfig="$KUBECONFIG" apply -f k3s/deployment.yaml
+    - kubectl --kubeconfig="$KUBECONFIG" apply -f k3s/service.yaml
+    - kubectl --kubeconfig="$KUBECONFIG" apply -f k3s/ingress.yaml
+    - kubectl --kubeconfig="$KUBECONFIG" apply -f k3s/hpa.yaml
+    - kubectl --kubeconfig="$KUBECONFIG" apply -f k3s/pdb.yaml
     - |
       kubectl --kubeconfig="$KUBECONFIG" set image \
         deployment/$DEPLOYMENT_NAME \
