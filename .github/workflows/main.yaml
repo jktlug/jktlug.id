@@ -1,3 +1,21 @@
+# GitHub Actions CI/CD for jktlug.id
+#
+# Mirrors .gitlab-ci.yml, but deploys ONLY to the remote (production) k3s —
+# there is no local-dev deploy here (that lives in GitLab, on the dev branch).
+#
+# Pipeline overview:
+#   build-site → test → deploy-pages (GitHub Pages, main only)
+#                     → push-image (Docker Hub, main only)
+#                     → deploy-k3s (remote k3s, main only, manual gate via
+#                       the "production" environment)
+#
+# Required repo settings:
+#   Secrets:  DOCKERHUB_USERNAME, DOCKERHUB_TOKEN  (Docker Hub access token)
+#             KUBECONFIG  (base64-encoded kubeconfig of the REMOTE k3s cluster)
+#   Settings → Pages → Source: "GitHub Actions"
+#   Settings → Environments → "production": add required reviewers to make
+#             deploy-k3s a manual approval gate.
+
 name: CI / CD
 
 on:
@@ -7,46 +25,53 @@ on:
     branches: [main]
 
 env:
-  # Your private registry domain
-  REGISTRY: registry.JKTLUG.id
-  IMAGE_NAME: jktlug/JKTLUG.id
+  STACK_VERSION: "3.11.1"
+
+permissions:
+  contents: read
 
 jobs:
   # --------------------------------------------------------------------------
-  # Build the static site using the Dockerfile builder stage
+  # Build the static site natively with Stack inside Debian 13 (trixie),
+  # matching the runtime image. ~/.stack is cached via actions/cache.
   # --------------------------------------------------------------------------
-  build:
+  build-site:
     runs-on: ubuntu-latest
+    container: debian:13
     steps:
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            bash ca-certificates curl git pkg-config \
+            zlib1g-dev libgmp-dev libffi-dev libncurses-dev \
+            make build-essential dpkg-dev
+          rm -rf /var/lib/apt/lists/*
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      # Build only the "builder" stage so we can extract _site later.
-      # BuildKit layer caching (type=gha) speeds up Stack/GHC rebuilds.
-      - name: Build site (Docker builder stage)
-        uses: docker/build-push-action@v5
+      - name: Cache Stack
+        uses: actions/cache@v4
         with:
-          context: .
-          target: builder
-          load: true
-          tags: site-builder:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          path: ~/.stack
+          key: stack-${{ hashFiles('stack.yaml.lock', 'jktlug-website.cabal') }}
+          restore-keys: stack-
 
-      # Extract the compiled static site from the builder image
-      - name: Extract _site from builder image
+      - name: Install Stack
         run: |
-          docker create --name extract site-builder:latest
-          docker cp extract:/build/_site ./_site
-          docker rm extract
+          if ! command -v stack >/dev/null 2>&1 || ! stack --version | grep -q "$STACK_VERSION"; then
+            echo "Installing Stack ${STACK_VERSION}..."
+            curl -sSL https://get.haskellstack.org/ | sh -s - -d /usr/local/bin
+          fi
+          stack --version
 
-      - name: Verify site output
+      - name: Build site
         run: |
-          echo "Generated files:"
-          ls -la _site/
+          stack setup --no-terminal
+          stack build --dependencies-only --no-terminal
+          stack build --no-terminal
+          stack exec site-compiler rebuild
 
       - name: Upload site artifact
         uses: actions/upload-artifact@v4
@@ -56,12 +81,47 @@ jobs:
           retention-days: 1
 
   # --------------------------------------------------------------------------
-  # Deploy static site to GitHub Pages (modern artifact-based deployment)
+  # Test suite (Hakyll unit tests via HTF)
   # --------------------------------------------------------------------------
-  # NOTE: For this job to work, go to Settings > Pages and set
-  #       "Build and deployment" source to "GitHub Actions".
+  test:
+    runs-on: ubuntu-latest
+    container: debian:13
+    steps:
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            bash ca-certificates curl git pkg-config \
+            zlib1g-dev libgmp-dev libffi-dev libncurses-dev \
+            make build-essential dpkg-dev
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Stack
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: stack-${{ hashFiles('stack.yaml.lock', 'jktlug-website.cabal') }}
+          restore-keys: stack-
+
+      - name: Install Stack
+        run: |
+          if ! command -v stack >/dev/null 2>&1 || ! stack --version | grep -q "$STACK_VERSION"; then
+            curl -sSL https://get.haskellstack.org/ | sh -s - -d /usr/local/bin
+          fi
+          stack --version
+
+      - name: Run tests
+        run: stack build --test --no-terminal
+
+  # --------------------------------------------------------------------------
+  # Deploy static site to GitHub Pages
+  # NOTE: Settings → Pages → "Build and deployment" source = "GitHub Actions".
+  # --------------------------------------------------------------------------
   deploy-pages:
-    needs: build
+    needs: build-site
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -87,12 +147,17 @@ jobs:
         uses: actions/deploy-pages@v4
 
   # --------------------------------------------------------------------------
-  # Build and push the production image to your private registry
+  # Build and push the production image to Docker Hub
+  # (uses the pre-built _site/ artifact — no Haskell rebuild inside Docker)
   # --------------------------------------------------------------------------
   push-image:
-    needs: build
+    needs: build-site
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # NOTE: the `secrets` context is not allowed in workflow-level `env`,
+    # so the image name is defined per-job. Repo: <dockerhub-user>/jktlug.id
+    env:
+      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/jktlug.id
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -106,12 +171,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to private registry
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -120,18 +184,28 @@ jobs:
           file: ./Dockerfile.runtime
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   # --------------------------------------------------------------------------
-  # Deploy to k3s by updating the Deployment image
+  # Deploy to the REMOTE k3s cluster (production namespace: jktlug)
+  # The `production` environment provides a manual approval gate if required
+  # reviewers are configured in the repo settings.
+  #
+  # NOTE: if the Docker Hub repo is private, the cluster needs a pull secret:
+  #   kubectl create secret docker-registry dockerhub-pull-secret -n jktlug \
+  #     --docker-server=index.docker.io --docker-username=... --docker-password=...
+  # and `imagePullSecrets` in k3s/deployment.yaml. Public repos need nothing.
   # --------------------------------------------------------------------------
   deploy-k3s:
     needs: push-image
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: production
+    env:
+      IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/jktlug.id
     steps:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
@@ -142,11 +216,12 @@ jobs:
         run: |
           mkdir -p ~/.kube
           echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
 
       - name: Update deployment image
         run: |
           kubectl set image deployment/jktlug-website \
-            nginx=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+            nginx=${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --namespace jktlug
 
       - name: Wait for rollout
