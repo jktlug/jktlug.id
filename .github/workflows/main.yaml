@@ -3,14 +3,21 @@
 # Mirrors .gitlab-ci.yml, but deploys ONLY to the remote (production) k3s —
 # there is no local-dev deploy here (that lives in GitLab, on the dev branch).
 #
-# Pipeline overview (push to main → straight to production):
-#   build-site → test → deploy-pages (GitHub Pages)
-#                     → push-image (Docker Hub) → deploy-k3s (remote k3s prod)
+# Pipeline:
+#   build-site → test → deploy-pages
+#                     → push-image → deploy-k3s
 #
-# Required repo settings:
-#   Secrets:  DOCKERHUB_USERNAME, DOCKERHUB_TOKEN  (Docker Hub access token)
-#             KUBECONFIG  (base64-encoded kubeconfig of the REMOTE k3s cluster)
-#   Settings → Pages → Source: "GitHub Actions"
+# GitHub Organization:
+#
+# Variables:
+#   DOCKERHUB_USERNAME
+#
+# Secrets:
+#   DOCKERHUB_TOKEN
+#   KUBECONFIG (base64-encoded kubeconfig of the REMOTE k3s cluster)
+#
+# GitHub Pages:
+#   Settings → Pages → Source: GitHub Actions
 
 name: CI / CD
 
@@ -22,23 +29,24 @@ on:
 
 env:
   STACK_VERSION: "3.11.1"
-  # In container jobs GHA sets HOME=/github/home (owned by the runner user),
-  # but the container runs as root — stack refuses to create ~/.stack there
-  # (error S-7613). Use a root-owned stack root instead.
   STACK_ROOT: /root/.stack
+
+  # GitHub Actions checkout files are owned by the runner user,
+  # while container jobs run as root. Stack normally refuses this.
+  STACK_ALLOW_DIFFERENT_USER: "true"
 
 permissions:
   contents: read
 
 jobs:
+
   # --------------------------------------------------------------------------
-  # Build the static site natively with Stack inside an Ubuntu 24.04
-  # container (same distro family as the runner). The stack root
-  # ($STACK_ROOT) is cached via actions/cache.
+  # Build the static site
   # --------------------------------------------------------------------------
   build-site:
     runs-on: ubuntu-latest
     container: ubuntu:24.04
+
     steps:
       - name: Install system dependencies
         run: |
@@ -56,17 +64,23 @@ jobs:
         with:
           path: /root/.stack
           key: stack-${{ hashFiles('stack.yaml.lock', 'jktlug-website.cabal') }}
-          restore-keys: stack-
+          restore-keys: |
+            stack-
 
       - name: Install Stack
         run: |
-          # Direct binary tarball (same as the Dockerfile) — no installer
-          # script, so no extra apt dependencies like gnupg/netbase.
           if ! command -v stack >/dev/null 2>&1 || ! stack --version | grep -q "$STACK_VERSION"; then
             echo "Installing Stack ${STACK_VERSION}..."
-            curl -sSL https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/stack-${STACK_VERSION}-linux-x86_64.tar.gz \
-              | tar xz --wildcards --strip-components=1 -C /usr/local/bin '*/stack'
+
+            curl -sSL \
+              https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/stack-${STACK_VERSION}-linux-x86_64.tar.gz \
+              | tar xz \
+                --wildcards \
+                --strip-components=1 \
+                -C /usr/local/bin \
+                '*/stack'
           fi
+
           stack --version
 
       - name: Build site
@@ -83,12 +97,14 @@ jobs:
           path: _site/
           retention-days: 1
 
+
   # --------------------------------------------------------------------------
-  # Test suite (Hakyll unit tests via HTF)
+  # Test suite
   # --------------------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
     container: ubuntu:24.04
+
     steps:
       - name: Install system dependencies
         run: |
@@ -106,35 +122,51 @@ jobs:
         with:
           path: /root/.stack
           key: stack-${{ hashFiles('stack.yaml.lock', 'jktlug-website.cabal') }}
-          restore-keys: stack-
+          restore-keys: |
+            stack-
 
       - name: Install Stack
         run: |
-          # Direct binary tarball (same as the Dockerfile) — no installer
-          # script, so no extra apt dependencies like gnupg/netbase.
           if ! command -v stack >/dev/null 2>&1 || ! stack --version | grep -q "$STACK_VERSION"; then
-            curl -sSL https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/stack-${STACK_VERSION}-linux-x86_64.tar.gz \
-              | tar xz --wildcards --strip-components=1 -C /usr/local/bin '*/stack'
+            echo "Installing Stack ${STACK_VERSION}..."
+
+            curl -sSL \
+              https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/stack-${STACK_VERSION}-linux-x86_64.tar.gz \
+              | tar xz \
+                --wildcards \
+                --strip-components=1 \
+                -C /usr/local/bin \
+                '*/stack'
           fi
+
           stack --version
 
       - name: Run tests
-        run: stack build --test --no-terminal
+        run: |
+          stack build --test --no-terminal
+
 
   # --------------------------------------------------------------------------
   # Deploy static site to GitHub Pages
-  # NOTE: Settings → Pages → "Build and deployment" source = "GitHub Actions".
+  #
+  # Only runs on push to main.
+  # Requires BOTH build and test to succeed.
   # --------------------------------------------------------------------------
   deploy-pages:
-    needs: build-site
+    needs: [build-site, test]
+
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     runs-on: ubuntu-latest
+
     permissions:
       pages: write
       id-token: write
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
       - name: Download site artifact
         uses: actions/download-artifact@v4
@@ -151,18 +183,23 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
+
   # --------------------------------------------------------------------------
-  # Build and push the production image to Docker Hub
-  # (uses the pre-built _site/ artifact — no Haskell rebuild inside Docker)
+  # Build and push production Docker image
+  #
+  # Uses the already-built static site artifact.
+  # No Haskell build happens inside Docker.
   # --------------------------------------------------------------------------
   push-image:
-    needs: build-site
+    needs: [build-site, test]
+
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     runs-on: ubuntu-latest
-    # NOTE: the `secrets` context is not allowed in workflow-level `env`,
-    # so the image name is defined per-job. Repo: <dockerhub-user>/jktlug.id
+
     env:
       IMAGE_NAME: ${{ vars.DOCKERHUB_USERNAME }}/jktlug.id
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -194,21 +231,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+
   # --------------------------------------------------------------------------
-  # Deploy to the REMOTE k3s cluster (production namespace: jktlug).
-  # Runs automatically on every push to main — no manual gate.
+  # Deploy production image to remote K3s
   #
-  # NOTE: if the Docker Hub repo is private, the cluster needs a pull secret:
-  #   kubectl create secret docker-registry dockerhub-pull-secret -n jktlug \
-  #     --docker-server=index.docker.io --docker-username=... --docker-password=...
-  # and `imagePullSecrets` in k3s/deployment.yaml. Public repos need nothing.
+  # Runs automatically after push-image succeeds.
   # --------------------------------------------------------------------------
   deploy-k3s:
     needs: push-image
+
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     runs-on: ubuntu-latest
+
     env:
       IMAGE_NAME: ${{ vars.DOCKERHUB_USERNAME }}/jktlug.id
+
     steps:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
@@ -218,17 +256,26 @@ jobs:
       - name: Configure kubeconfig
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+
+          echo "${{ secrets.KUBECONFIG }}" \
+            | base64 -d > ~/.kube/config
+
           chmod 600 ~/.kube/config
+
+      - name: Verify Kubernetes connection
+        run: |
+          kubectl cluster-info
 
       - name: Update deployment image
         run: |
-          kubectl set image deployment/jktlug-website \
+          kubectl set image \
+            deployment/jktlug-website \
             nginx=${{ env.IMAGE_NAME }}:${{ github.sha }} \
             --namespace jktlug
 
       - name: Wait for rollout
         run: |
-          kubectl rollout status deployment/jktlug-website \
+          kubectl rollout status \
+            deployment/jktlug-website \
             --namespace jktlug \
             --timeout=120s
