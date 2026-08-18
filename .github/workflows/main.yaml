@@ -30,11 +30,7 @@ on:
 env:
   STACK_VERSION: "3.11.1"
   STACK_ROOT: /root/.stack
-
-  # GitHub Actions checkout files are owned by the runner user,
-  # while container jobs run as root. Stack normally refuses this.
-  STACK_ALLOW_DIFFERENT_USER: "true"
-
+  
 permissions:
   contents: read
 
@@ -85,9 +81,9 @@ jobs:
 
       - name: Build site
         run: |
-          stack setup --no-terminal
-          stack build --dependencies-only --no-terminal
-          stack build --no-terminal
+          stack setup --no-terminal --allow-different-user
+          stack build --dependencies-only --no-terminal --allow-different-user
+          stack build --no-terminal --allow-different-user
           stack exec site-compiler rebuild
 
       - name: Upload site artifact
@@ -143,7 +139,7 @@ jobs:
 
       - name: Run tests
         run: |
-          stack build --test --no-terminal
+          stack build --test --no-terminal --allow-different-user
 
 
   # --------------------------------------------------------------------------
