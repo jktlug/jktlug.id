@@ -3,18 +3,14 @@
 # Mirrors .gitlab-ci.yml, but deploys ONLY to the remote (production) k3s —
 # there is no local-dev deploy here (that lives in GitLab, on the dev branch).
 #
-# Pipeline overview:
-#   build-site → test → deploy-pages (GitHub Pages, main only)
-#                     → push-image (Docker Hub, main only)
-#                     → deploy-k3s (remote k3s, main only, manual gate via
-#                       the "production" environment)
+# Pipeline overview (push to main → straight to production):
+#   build-site → test → deploy-pages (GitHub Pages)
+#                     → push-image (Docker Hub) → deploy-k3s (remote k3s prod)
 #
 # Required repo settings:
 #   Secrets:  DOCKERHUB_USERNAME, DOCKERHUB_TOKEN  (Docker Hub access token)
 #             KUBECONFIG  (base64-encoded kubeconfig of the REMOTE k3s cluster)
 #   Settings → Pages → Source: "GitHub Actions"
-#   Settings → Environments → "production": add required reviewers to make
-#             deploy-k3s a manual approval gate.
 
 name: CI / CD
 
@@ -32,12 +28,13 @@ permissions:
 
 jobs:
   # --------------------------------------------------------------------------
-  # Build the static site natively with Stack inside Debian 13 (trixie),
-  # matching the runtime image. ~/.stack is cached via actions/cache.
+  # Build the static site natively with Stack inside an Ubuntu 24.04
+  # container (same distro family as the runner). ~/.stack is cached via
+  # actions/cache.
   # --------------------------------------------------------------------------
   build-site:
     runs-on: ubuntu-latest
-    container: debian:13
+    container: ubuntu:24.04
     steps:
       - name: Install system dependencies
         run: |
@@ -46,7 +43,6 @@ jobs:
             bash ca-certificates curl git pkg-config \
             zlib1g-dev libgmp-dev libffi-dev libncurses-dev \
             make build-essential dpkg-dev
-          rm -rf /var/lib/apt/lists/*
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,9 +56,12 @@ jobs:
 
       - name: Install Stack
         run: |
+          # Direct binary tarball (same as the Dockerfile) — no installer
+          # script, so no extra apt dependencies like gnupg/netbase.
           if ! command -v stack >/dev/null 2>&1 || ! stack --version | grep -q "$STACK_VERSION"; then
             echo "Installing Stack ${STACK_VERSION}..."
-            curl -sSL https://get.haskellstack.org/ | sh -s - -d /usr/local/bin
+            curl -sSL https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/stack-${STACK_VERSION}-linux-x86_64.tar.gz \
+              | tar xz --wildcards --strip-components=1 -C /usr/local/bin '*/stack'
           fi
           stack --version
 
@@ -85,7 +84,7 @@ jobs:
   # --------------------------------------------------------------------------
   test:
     runs-on: ubuntu-latest
-    container: debian:13
+    container: ubuntu:24.04
     steps:
       - name: Install system dependencies
         run: |
@@ -94,7 +93,6 @@ jobs:
             bash ca-certificates curl git pkg-config \
             zlib1g-dev libgmp-dev libffi-dev libncurses-dev \
             make build-essential dpkg-dev
-          rm -rf /var/lib/apt/lists/*
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -108,8 +106,11 @@ jobs:
 
       - name: Install Stack
         run: |
+          # Direct binary tarball (same as the Dockerfile) — no installer
+          # script, so no extra apt dependencies like gnupg/netbase.
           if ! command -v stack >/dev/null 2>&1 || ! stack --version | grep -q "$STACK_VERSION"; then
-            curl -sSL https://get.haskellstack.org/ | sh -s - -d /usr/local/bin
+            curl -sSL https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/stack-${STACK_VERSION}-linux-x86_64.tar.gz \
+              | tar xz --wildcards --strip-components=1 -C /usr/local/bin '*/stack'
           fi
           stack --version
 
@@ -190,9 +191,8 @@ jobs:
           cache-to: type=gha,mode=max
 
   # --------------------------------------------------------------------------
-  # Deploy to the REMOTE k3s cluster (production namespace: jktlug)
-  # The `production` environment provides a manual approval gate if required
-  # reviewers are configured in the repo settings.
+  # Deploy to the REMOTE k3s cluster (production namespace: jktlug).
+  # Runs automatically on every push to main — no manual gate.
   #
   # NOTE: if the Docker Hub repo is private, the cluster needs a pull secret:
   #   kubectl create secret docker-registry dockerhub-pull-secret -n jktlug \
@@ -203,7 +203,6 @@ jobs:
     needs: push-image
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: production
     env:
       IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/jktlug.id
     steps:
