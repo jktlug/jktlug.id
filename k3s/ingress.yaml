@@ -25,7 +25,7 @@ spec:
   #     secretName: jktlug-tls
 
   rules:
-    - host: JKTLUG.id
+    - host: jktlug.id
       http:
         paths:
           - path: /
@@ -35,7 +35,7 @@ spec:
                 name: jktlug-website
                 port:
                   number: 80
-    - host: www.JKTLUG.id
+    - host: www.jktlug.id
       http:
         paths:
           - path: /
