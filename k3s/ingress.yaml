@@ -6,23 +6,8 @@ metadata:
   labels:
     app.kubernetes.io/name: jktlug-website
     app.kubernetes.io/instance: production
-  annotations:
-    # K3s ships with Traefik by default; standard Ingress resources work out of the box.
-    # If you are using the nginx-ingress controller instead, swap the annotations below.
-
-    # Traefik: redirect HTTP to HTTPS (optional, requires TLS below or default cert)
-    traefik.ingress.kubernetes.io/router.middlewares: default-redirect-https@kubernetescrd
-
-    # Nginx-ingress alternative (uncomment if using nginx-ingress):
-    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
-  # If you have a default TLS cert configured in Traefik/nginx, omit the tls block.
-  # Otherwise, uncomment and reference a TLS secret:
-  # tls:
-  #   - hosts:
-  #       - JKTLUG.id
-  #       - www.JKTLUG.id
-  #     secretName: jktlug-tls
+  ingressClassName: traefik
 
   rules:
     - host: jktlug.id
@@ -35,6 +20,7 @@ spec:
                 name: jktlug-website
                 port:
                   number: 80
+
     - host: www.jktlug.id
       http:
         paths:
