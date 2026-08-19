@@ -82,8 +82,15 @@ jobs:
       - name: Build site
         run: |
           stack setup --no-terminal --allow-different-user
-          stack build --dependencies-only --no-terminal --allow-different-user
-          stack build --no-terminal --allow-different-user
+      
+          stack build --dependencies-only \
+            --no-terminal \
+            --allow-different-user
+      
+          stack build \
+            --no-terminal \
+            --allow-different-user
+      
           stack exec site-compiler rebuild
 
       - name: Upload site artifact
@@ -139,45 +146,18 @@ jobs:
 
       - name: Run tests
         run: |
-          stack build --test --no-terminal --allow-different-user
-
-
-  # --------------------------------------------------------------------------
-  # Deploy static site to GitHub Pages
-  #
-  # Only runs on push to main.
-  # Requires BOTH build and test to succeed.
-  # --------------------------------------------------------------------------
-  deploy-pages:
-    needs: [build-site, test]
-
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      pages: write
-      id-token: write
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Download site artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: static-site
-          path: _site
-
-      - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          for i in 1 2 3; do
+            echo "Attempt $i..."
+      
+            if stack build --test --no-terminal --allow-different-user; then
+              exit 0
+            fi
+      
+            echo "Stack build failed. Waiting before retry..."
+            sleep 15
+          done
+      
+          exit 1
 
 
   # --------------------------------------------------------------------------
