@@ -1,22 +1,16 @@
 # GitHub Actions CI/CD for jktlug.id
 #
-# Mirrors .gitlab-ci.yml, but deploys ONLY to the remote (production) k3s —
-# there is no local-dev deploy here (that lives in GitLab, on the dev branch).
-#
 # Pipeline:
 #   build-site → test → push-image → deploy-k3s
 #
-# GitHub Organization:
-#
-# Variables:
+# Organization Variables:
 #   DOCKERHUB_USERNAME
 #
-# Secrets:
+# Organization Secrets:
 #   DOCKERHUB_TOKEN
-#   KUBECONFIG (base64-encoded kubeconfig of the REMOTE k3s cluster)
+#   KUBECONFIG
 #
-# GitHub Pages:
-#   Settings → Pages → Source: GitHub Actions
+# KUBECONFIG must be base64-encoded.
 
 name: CI / CD
 
@@ -29,27 +23,37 @@ on:
 env:
   STACK_VERSION: "3.11.1"
   STACK_ROOT: /root/.stack
-  
+
 permissions:
   contents: read
 
 jobs:
 
-  # --------------------------------------------------------------------------
-  # Build the static site
-  # --------------------------------------------------------------------------
+  # ==========================================================================
+  # Build static site
+  # ==========================================================================
+
   build-site:
     runs-on: ubuntu-latest
-    container: ubuntu:24.04
+    container: haskell:9.8.4-bullseye
 
     steps:
       - name: Install system dependencies
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            bash ca-certificates curl git pkg-config \
-            zlib1g-dev libgmp-dev libffi-dev libncurses-dev \
-            make build-essential dpkg-dev
+            bash \
+            ca-certificates \
+            curl \
+            git \
+            pkg-config \
+            zlib1g-dev \
+            libgmp-dev \
+            libffi-dev \
+            libncurses-dev \
+            make \
+            build-essential \
+            dpkg-dev
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,34 +66,22 @@ jobs:
           restore-keys: |
             stack-
 
-      - name: Install Stack
+      - name: Check Haskell toolchain
         run: |
-          if ! command -v stack >/dev/null 2>&1 || ! stack --version | grep -q "$STACK_VERSION"; then
-            echo "Installing Stack ${STACK_VERSION}..."
-
-            curl -sSL \
-              https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/stack-${STACK_VERSION}-linux-x86_64.tar.gz \
-              | tar xz \
-                --wildcards \
-                --strip-components=1 \
-                -C /usr/local/bin \
-                '*/stack'
-          fi
-
+          ghc --version
           stack --version
 
       - name: Build site
         run: |
-          stack setup --no-terminal --allow-different-user
-      
-          stack build --dependencies-only \
+          stack build \
+            --dependencies-only \
             --no-terminal \
             --allow-different-user
-      
+
           stack build \
             --no-terminal \
             --allow-different-user
-      
+
           stack exec site-compiler rebuild
 
       - name: Upload site artifact
@@ -100,21 +92,31 @@ jobs:
           retention-days: 1
 
 
-  # --------------------------------------------------------------------------
+  # ==========================================================================
   # Test suite
-  # --------------------------------------------------------------------------
+  # ==========================================================================
+
   test:
     runs-on: ubuntu-latest
-    container: ubuntu:24.04
+    container: haskell:9.8.4-bullseye
 
     steps:
       - name: Install system dependencies
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            bash ca-certificates curl git pkg-config \
-            zlib1g-dev libgmp-dev libffi-dev libncurses-dev \
-            make build-essential dpkg-dev
+            bash \
+            ca-certificates \
+            curl \
+            git \
+            pkg-config \
+            zlib1g-dev \
+            libgmp-dev \
+            libffi-dev \
+            libncurses-dev \
+            make \
+            build-essential \
+            dpkg-dev
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -127,44 +129,23 @@ jobs:
           restore-keys: |
             stack-
 
-      - name: Install Stack
+      - name: Check Haskell toolchain
         run: |
-          if ! command -v stack >/dev/null 2>&1 || ! stack --version | grep -q "$STACK_VERSION"; then
-            echo "Installing Stack ${STACK_VERSION}..."
-
-            curl -sSL \
-              https://github.com/commercialhaskell/stack/releases/download/v${STACK_VERSION}/stack-${STACK_VERSION}-linux-x86_64.tar.gz \
-              | tar xz \
-                --wildcards \
-                --strip-components=1 \
-                -C /usr/local/bin \
-                '*/stack'
-          fi
-
+          ghc --version
           stack --version
 
       - name: Run tests
         run: |
-          for i in 1 2 3; do
-            echo "Attempt $i..."
-      
-            if stack build --test --no-terminal --allow-different-user; then
-              exit 0
-            fi
-      
-            echo "Stack build failed. Waiting before retry..."
-            sleep 15
-          done
-      
-          exit 1
+          stack build \
+            --test \
+            --no-terminal \
+            --allow-different-user
 
 
-  # --------------------------------------------------------------------------
-  # Build and push production Docker image
-  #
-  # Uses the already-built static site artifact.
-  # No Haskell build happens inside Docker.
-  # --------------------------------------------------------------------------
+  # ==========================================================================
+  # Build and push Docker image
+  # ==========================================================================
+
   push-image:
     needs: [build-site, test]
 
@@ -195,7 +176,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile.runtime
@@ -207,11 +188,10 @@ jobs:
           cache-to: type=gha,mode=max
 
 
-  # --------------------------------------------------------------------------
-  # Deploy production image to remote K3s
-  #
-  # Runs automatically after push-image succeeds.
-  # --------------------------------------------------------------------------
+  # ==========================================================================
+  # Deploy to production K3s
+  # ==========================================================================
+
   deploy-k3s:
     needs: push-image
 
@@ -224,7 +204,7 @@ jobs:
 
     steps:
       - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+        uses: azure/setup-kubectl@v4
         with:
           version: v1.30.0
 
@@ -233,13 +213,15 @@ jobs:
           mkdir -p ~/.kube
 
           echo "${{ secrets.KUBECONFIG }}" \
-            | base64 -d > ~/.kube/config
+            | base64 -d \
+            > ~/.kube/config
 
           chmod 600 ~/.kube/config
 
       - name: Verify Kubernetes connection
         run: |
           kubectl cluster-info
+          kubectl get namespace jktlug
 
       - name: Update deployment image
         run: |
@@ -254,3 +236,12 @@ jobs:
             deployment/jktlug-website \
             --namespace jktlug \
             --timeout=120s
+
+      - name: Verify deployment
+        run: |
+          kubectl get deployment jktlug-website \
+            --namespace jktlug
+
+          kubectl get pods \
+            --namespace jktlug \
+            -l app=jktlug-website
