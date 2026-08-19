@@ -4,8 +4,7 @@
 # there is no local-dev deploy here (that lives in GitLab, on the dev branch).
 #
 # Pipeline:
-#   build-site → test → deploy-pages
-#                     → push-image → deploy-k3s
+#   build-site → test → push-image → deploy-k3s
 #
 # GitHub Organization:
 #
