@@ -7,7 +7,7 @@ import           Hakyll.Web.Html (withUrls)
 import           Hakyll.Core.Rules.Internal
 import           System.FilePath (joinPath, splitPath, replaceExtension)
 import           Text.Pandoc (Pandoc, ReaderOptions, runPure, readMediaWiki)
-import           Data.List (isPrefixOf)
+import           Data.List (isPrefixOf, isSuffixOf)
 import           Data.Text as DT (pack)
 import           Data.Maybe;
 import           Debug.Trace;
@@ -33,7 +33,7 @@ main = hakyll $ do
         compile copyFileCompiler
 
     match "wiki/*" $ do
-        route   $ setExtension "html"
+        route   wikiRoute
         compile mediawikiCompiler
 
     tags <- buildTagsWith wikiCategoryRules "wiki/*" (fromCapture "wiki/*")
@@ -48,6 +48,15 @@ dropInitialComponents n = customRoute $
     joinPath . drop n . splitPath . toFilePath
 
 dropInitialComponent = dropInitialComponents 1
+
+-- | Route wiki pages to @.html@, preserving an explicit @.id@
+-- language suffix (e.g. @Main_Page.id@ -> @Main_Page.id.html@).
+wikiRoute :: Routes
+wikiRoute = customRoute $ \ident ->
+    let fp = toFilePath ident
+    in if ".id" `isSuffixOf` fp
+        then fp ++ ".html"
+        else replaceExtension fp "html"
 
 mediawikiCompiler :: Compiler (Item String)
 mediawikiCompiler =

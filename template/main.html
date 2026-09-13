@@ -3,26 +3,46 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Jakarta Linux Users Group</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700&display=swap" rel="stylesheet" />
         <link rel="stylesheet" href="/css/jktlug.css" type="text/css" />
         <link rel="stylesheet" href="/css/common.css" type="text/css" />
+        <script>
+            (function () {
+                try {
+                    var t = localStorage.getItem("jktlug-theme");
+                    if (t === "dark" || t === "light") {
+                        document.documentElement.setAttribute("data-theme", t);
+                    } else {
+                        document.documentElement.removeAttribute("data-theme");
+                    }
+                } catch (e) {}
+            })();
+        </script>
     </head>
 
     <body>
-        <div id="top">
-            <div id="lang_options">
-                <p>| <a href="/index.html">English</a> |</p>
+        <div id="header-bar">
+            <a id="logo" href="/index.html">
+                <img id="header-logo" src="/images/jktlug-logo.png" alt="JKTLUG Logo" />
+            </a>
+            <a id="site-title" href="/index.html">Jakarta Linux Users Group</a>
+            <div id="top">
+                <div id="lang_options">
+                    <p>
+                        | <a id="lang-en" href="/index.html">English</a> |
+                        <a id="lang-id" href="/index.id.html">Bahasa Indonesia</a> |
+                    </p>
+                </div>
+                <button id="theme-toggle" type="button" aria-label="Toggle theme">System</button>
             </div>
         </div>
 
         <div id="menu">
             <div class="items">
-                <div id="logo">
-                    <img src="/images/jktlug.png" alt="JKTLUG Logo" id="header-logo" />
-                </div>
                 <div id="general_menu">
                     <h2>General</h2>
                     <ul>
@@ -32,6 +52,7 @@
                                 >Organization</a
                             >
                         </li>
+                        <li><a href="/wiki/Supporters.html">Supporters</a></li>
                     </ul>
                 </div>
 
@@ -53,9 +74,75 @@
             <div id="copyright">
                 <p>
                     Homepage of the Jakarta Linux Users Group.<br />
-                    All rights reserved.
+                    © 2026. All rights reserved.
                 </p>
             </div>
         </div>
+
+        <script>
+            (function () {
+                var btn = document.getElementById("theme-toggle");
+                var MODES = ["system", "dark", "light"];
+                function label(mode) {
+                    return mode === "dark" ? "Dark" : mode === "light" ? "Light" : "System";
+                }
+                function stored() {
+                    try {
+                        var t = localStorage.getItem("jktlug-theme");
+                        return t === "dark" || t === "light" ? t : "system";
+                    } catch (e) {
+                        return "system";
+                    }
+                }
+                function apply(mode) {
+                    if (mode === "dark" || mode === "light") {
+                        document.documentElement.setAttribute("data-theme", mode);
+                    } else {
+                        document.documentElement.removeAttribute("data-theme");
+                    }
+                    try {
+                        localStorage.setItem("jktlug-theme", mode);
+                    } catch (e) {}
+                    if (btn) btn.textContent = label(mode);
+                }
+                if (btn) {
+                    btn.textContent = label(stored());
+                    btn.addEventListener("click", function () {
+                        var i = MODES.indexOf(stored());
+                        apply(MODES[(i + 1) % MODES.length]);
+                    });
+                }
+
+                var en = document.getElementById("lang-en");
+                var id = document.getElementById("lang-id");
+                if (en && id) {
+                    var p = window.location.pathname;
+                    if (p.slice(-8) === ".id.html") {
+                        var home = document.getElementById("logo");
+                        var title = document.getElementById("site-title");
+                        if (home) home.setAttribute("href", "/index.id.html");
+                        if (title) title.setAttribute("href", "/index.id.html");
+                        var links = document.querySelectorAll("a[href^='/wiki/']");
+                        for (var i = 0; i < links.length; i++) {
+                            var h = links[i].getAttribute("href");
+                            if (h.slice(-8) !== ".id.html") {
+                                links[i].setAttribute("href", h.slice(0, -5) + ".id.html");
+                            }
+                        }
+                        en.href = p.slice(0, -8) + ".html";
+                        id.href = p;
+                        id.className = "active";
+                    } else if (p.slice(-5) === ".html") {
+                        en.href = p;
+                        id.href = p.slice(0, -5) + ".id.html";
+                        en.className = "active";
+                    } else {
+                        en.href = "/index.html";
+                        id.href = "/index.id.html";
+                        en.className = "active";
+                    }
+                }
+            })();
+        </script>
     </body>
 </html>
