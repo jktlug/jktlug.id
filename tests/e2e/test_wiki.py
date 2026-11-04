@@ -24,16 +24,17 @@ def test_wiki_pages_have_menu(page):
 
 def test_wiki_current_meeting_redirects(page):
     page.goto("/wiki/Current_Meeting.html")
-    page.wait_for_url("**/wiki/Meetings:2026:09.html")
+    page.wait_for_url("**/wiki/Meetings:2026:11.html")
     content = page.locator(".content").inner_text()
-    assert "Rin" in content
-    assert "GNOME translation" in content
-    assert "September 27, 2026" in content
+    assert "Nix package manager" in content
+    assert "openSUSE Leap 16.1" in content
+    assert "November 7, 2026" in content
 
 
 def test_wiki_past_meetings_page(page):
     page.goto("/wiki/Meetings.html")
     content = page.locator(".content").inner_text()
+    assert "openSUSE Leap 16.1" in content
     assert "JKTLUG September Meetup" in content
     assert "Debian Day 2026 Jakarta" in content
 
@@ -63,11 +64,13 @@ def test_wiki_indonesian_main_page_stays_indonesian(page):
 
 def test_wiki_indonesian_current_meeting_redirects(page):
     page.goto("/wiki/Current_Meeting.id.html")
-    page.wait_for_url("**/wiki/Meetings:2026:09.id.html")
+    page.wait_for_url("**/wiki/Meetings:2026:11.id.html")
     content = page.locator(".content").inner_text()
     assert "Tanggal" in content
     assert "Pendaftaran" in content
     assert "Daftar di Luma" in content
+    assert page.locator(".content a[href='https://luma.com/k8impk8a']").is_visible()
+    assert "7 November 2026" in content
 
 
 def test_wiki_indonesian_supporters_page(page):

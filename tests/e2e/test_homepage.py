@@ -46,22 +46,27 @@ def test_homepage_navigation_menu(page):
 def test_homepage_upcoming_event(page):
     page.goto("/")
     events = page.locator("#events")
-    assert "JKTLUG September Meetup" in events.inner_text()
-    assert "September 27, 2026" in events.inner_text()
-    assert page.locator("#events .event-date").count() == 0
-    assert page.locator("#events a.button").count() == 0
-    register = page.locator("#events a[href='https://luma.com/3piobror']")
+    assert "openSUSE Leap 16.1" in events.inner_text()
+    assert "November 7, 2026" in events.inner_text()
+    assert "Garuda SparksxMarkas Indonesia" in events.inner_text()
+    assert "10:00–13:15 WIB" in events.inner_text()
+    register = page.locator("#events a[href='https://luma.com/k8impk8a']")
     assert register.is_visible()
     assert register.get_attribute("target") == "_blank"
     assert "noopener" in (register.get_attribute("rel") or "")
+    assert page.locator("#events .event-date").count() == 0
+    assert page.locator("#events a.button").count() == 0
+    page.locator("#events a[href='/wiki/Meetings:2026:11.html']").click()
+    page.wait_for_url("**/wiki/Meetings:2026:11.html")
+    assert "Nix package manager" in page.locator(".content").inner_text()
 
 
 def test_homepage_external_link_has_security_attrs(page):
     page.goto("/")
-    luma = page.locator("a[href*='luma.com']")
-    assert luma.is_visible()
-    assert luma.get_attribute("target") == "_blank"
-    assert "noopener" in (luma.get_attribute("rel") or "")
+    matrix = page.locator(".meetings a[href*='matrix.to']")
+    assert matrix.is_visible()
+    assert matrix.get_attribute("target") == "_blank"
+    assert "noopener" in (matrix.get_attribute("rel") or "")
 
 
 def test_homepage_theme_toggle_cycles(page):
