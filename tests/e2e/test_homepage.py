@@ -48,7 +48,7 @@ def test_homepage_upcoming_event(page):
     events = page.locator("#events")
     assert "openSUSE Leap 16.1" in events.inner_text()
     assert "November 7, 2026" in events.inner_text()
-    assert "Garuda SparksxMarkas Indonesia" in events.inner_text()
+    assert "GSIH Spooke 002 (Markas Indonesia)" in events.inner_text()
     assert "10:00–13:15 WIB" in events.inner_text()
     register = page.locator("#events a[href='https://luma.com/k8impk8a']")
     assert register.is_visible()
