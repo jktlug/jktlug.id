@@ -1,0 +1,32 @@
+{
+    "_comment": "Single source of truth for homepage events. Times are ISO 8601 with the WIB offset (+07:00). An event moves to Past Events automatically once its `end` (or, if missing, the end of its start day) has passed in the visitor's browser. `title` and `venue` may be a plain string or an {en, id} object. `wiki` is the page name under /wiki/ (no extension); the Indonesian page is `<wiki>.id.html`.",
+    "events": [
+        {
+            "id": "2026-11",
+            "title": "JKTLUG × openSUSE Indonesia: Release Party openSUSE Leap 16.1",
+            "start": "2026-11-07T10:00:00+07:00",
+            "end": "2026-11-07T13:15:00+07:00",
+            "venue": "GSIH Spooke 002 (Markas Indonesia), Jakarta Pusat",
+            "wiki": "Meetings:2026:11",
+            "register": "https://luma.com/k8impk8a"
+        },
+        {
+            "id": "2026-09",
+            "title": "JKTLUG September Meetup",
+            "start": "2026-09-27T13:00:00+07:00",
+            "end": "2026-09-27T17:00:00+07:00",
+            "venue": "Ruang Berkarya, PDS H.B. Jassin, Taman Ismail Marzuki, Jakarta Pusat",
+            "wiki": "Meetings:2026:09",
+            "register": "https://luma.com/3piobror"
+        },
+        {
+            "id": "2026-08",
+            "title": "Debian Day 2026 Jakarta",
+            "start": "2026-08-29T13:00:00+07:00",
+            "end": "2026-08-29T17:00:00+07:00",
+            "venue": "Jakarta Selatan",
+            "wiki": "Meetings:2026:08",
+            "register": "https://luma.com/bjl868hr"
+        }
+    ]
+}

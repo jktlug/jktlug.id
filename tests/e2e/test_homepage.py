@@ -44,21 +44,52 @@ def test_homepage_navigation_menu(page):
 
 
 def test_homepage_upcoming_event(page):
-    page.goto("/")
-    events = page.locator("#events")
-    assert "openSUSE Leap 16.1" in events.inner_text()
-    assert "November 7, 2026" in events.inner_text()
-    assert "GSIH Spooke 002 (Markas Indonesia)" in events.inner_text()
-    assert "10:00–13:15 WIB" in events.inner_text()
+    page.goto("/?now=2026-11-01T00:00:00%2B07:00")
+    upcoming = page.locator("#events-upcoming")
+    upcoming.locator(".event-card").first.wait_for()
+    text = upcoming.inner_text()
+    assert "openSUSE Leap 16.1" in text
+    assert "November 7, 2026" in text
+    assert "GSIH Spooke 002 (Markas Indonesia)" in text
+    assert "10:00–13:15 WIB" in text
+    assert upcoming.locator(".event-card").count() == 1
     register = page.locator("#events a[href='https://luma.com/k8impk8a']")
     assert register.is_visible()
     assert register.get_attribute("target") == "_blank"
     assert "noopener" in (register.get_attribute("rel") or "")
-    assert page.locator("#events .event-date").count() == 0
-    assert page.locator("#events a.button").count() == 0
+    past = page.locator("#events-past")
+    assert "JKTLUG September Meetup" in past.inner_text()
+    assert "openSUSE" not in past.inner_text()
     page.locator("#events a[href='/wiki/Meetings:2026:11.html']").click()
     page.wait_for_url("**/wiki/Meetings:2026:11.html")
     assert "Nix package manager" in page.locator(".content").inner_text()
+
+
+def test_homepage_event_moves_to_past_after_it_ends(page):
+    page.goto("/?now=2026-11-07T13:16:00%2B07:00")
+    page.locator("#events-past li").first.wait_for()
+    assert page.locator("#events-upcoming .event-card").count() == 0
+    assert page.locator("#events-upcoming .event-empty").is_visible()
+    items = page.locator("#events-past li")
+    assert "openSUSE Leap 16.1" in items.nth(0).inner_text()
+    assert "Debian Day" in items.nth(items.count() - 1).inner_text()
+
+
+def test_homepage_event_in_progress_stays_upcoming(page):
+    page.goto("/?now=2026-11-07T11:00:00%2B07:00")
+    badge = page.locator("#events-upcoming .event-badge")
+    badge.wait_for()
+    assert "openSUSE" in page.locator("#events-upcoming").inner_text()
+
+
+def test_homepage_indonesian_events(page):
+    page.goto("/index.id.html?now=2026-11-01T00:00:00%2B07:00")
+    upcoming = page.locator("#events-upcoming")
+    upcoming.locator(".event-card").first.wait_for()
+    assert "Sabtu, 7 November 2026" in upcoming.inner_text()
+    assert "10.00–13.15 WIB" in upcoming.inner_text()
+    assert page.locator("#events a[href='/wiki/Meetings:2026:11.id.html']").is_visible()
+    assert "Acara Sebelumnya" in page.locator("#past-events").inner_text()
 
 
 def test_homepage_external_link_has_security_attrs(page):
